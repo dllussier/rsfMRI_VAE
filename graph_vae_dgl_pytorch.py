@@ -29,7 +29,8 @@ cuda = torch.device('cuda')
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
-
+    
+#load dataloader instances directly into gpu memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
 dataset = MiniGCDataset(80, 10, 20)
@@ -38,7 +39,6 @@ fig, ax = plt.subplots()
 nx.draw(graph.to_networkx(), ax=ax)
 ax.set_title('Class: {:d}'.format(label))
 plt.show()
-
 
 def collate(samples): #samples is a list of pairs
     graphs, labels = map(list, zip(*samples))
@@ -66,7 +66,7 @@ class NodeApplyModule(nn.Module):
         h = self.activation(h)
         return {'h' : h}
 
-
+#graph convolution
 class GCN(nn.Module):
     def __init__(self, in_feats, out_feats, activation):
         super(GCN, self).__init__()
@@ -78,6 +78,7 @@ class GCN(nn.Module):
         g.apply_nodes(func=self.apply_mod)
         return g.ndata.pop('h')
 
+#vae using gcn
 class VAE(nn.Module):
     def __init__(self, g_dim, h_dim1, h_dim2, z_dim):
         super(VAE, self).__init__()
@@ -118,7 +119,7 @@ model = vae
 if CUDA:
     model.cuda()
 
-#training and test
+#train and test
 trainset = MiniGCDataset(320, 10, 20)
 testset = MiniGCDataset(80, 10, 20)
 
