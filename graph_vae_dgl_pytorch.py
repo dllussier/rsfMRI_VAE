@@ -36,7 +36,7 @@ if CUDA:
 # DataLoader instances will load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
-g = dgl.DGLGraph()
+g = dgl.batch()
 
 dataset = MiniGCDataset(80, 10, 20)
 graph, label = dataset[0]
