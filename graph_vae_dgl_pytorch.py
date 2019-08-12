@@ -123,12 +123,10 @@ if CUDA:
 trainset = MiniGCDataset(320, 10, 20)
 testset = MiniGCDataset(80, 10, 20)
 
-train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('data', train=True, download=True, transform=transforms.ToTensor()), 
+train_loader = DataLoader(datasets.MNIST('data', train=True, download=True, transform=transforms.ToTensor()), 
     batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
 
-test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('data', train=False, transform=transforms.ToTensor()),
+test_loader = DataLoader(datasets.MNIST('data', train=False, transform=transforms.ToTensor()),
     batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
 
 def loss_function(recon_g, g, mu, log_var):
