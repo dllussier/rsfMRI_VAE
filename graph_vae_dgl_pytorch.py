@@ -82,12 +82,12 @@ class VAE(nn.Module):
     def __init__(self, g_dim, h_dim1, h_dim2, z_dim):
         super(VAE, self).__init__()
         
-        # encoder part
+        # encoder
         self.fc1 = GCN(g_dim, h_dim1, F.relu)
         self.fc2 = GCN(h_dim1, h_dim2, F.relu)
         self.fc31 = GCN(h_dim2, z_dim, F.linear)
         self.fc32 = GCN(h_dim2, z_dim, F.linear)
-        # decoder part
+        # decoder
         self.fc4 = GCN(z_dim, h_dim2, F.relu)
         self.fc5 = GCN(h_dim2, h_dim1, F.relu)
         self.fc6 = GCN(h_dim1, g_dim, F.sigmoid)
