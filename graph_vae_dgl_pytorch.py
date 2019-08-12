@@ -22,9 +22,6 @@ SEED = 1
 BATCH_SIZE = 32
 LOG_INTERVAL = 10
 EPOCHS = 20
-
-# connections through the autoencoder bottleneck
-# in the pytorch VAE example, this is 20
 ZDIMS = 20
 
 cuda = torch.device('cuda')
@@ -33,7 +30,6 @@ torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-# DataLoader instances will load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
 dataset = MiniGCDataset(80, 10, 20)
@@ -44,14 +40,12 @@ ax.set_title('Class: {:d}'.format(label))
 plt.show()
 
 
-def collate(samples):
-    # The input `samples` is a list of pairs
-    #  (graph, label).
+def collate(samples): #samples is a list of pairs
     graphs, labels = map(list, zip(*samples))
     batched_graph = dgl.batch(graphs)
     return batched_graph, torch.tensor(labels)
 
-# Sends a message of node feature h.
+#sends message of node feature h
 msg = fn.copy_src(src='h', out='m')
 
 def reduce(nodes):
@@ -118,13 +112,13 @@ class VAE(nn.Module):
         z = self.sampling(mu, log_var)
         return g, self.decoder(z), mu, log_var
 
-# build model
 vae = VAE(g_dim=784, h_dim1= 512, h_dim2=256, z_dim=ZDIMS)   
 
 model = vae
 if CUDA:
     model.cuda()
 
+#training and test
 trainset = MiniGCDataset(320, 10, 20)
 testset = MiniGCDataset(80, 10, 20)
 
