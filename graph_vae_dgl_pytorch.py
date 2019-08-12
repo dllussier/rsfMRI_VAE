@@ -36,6 +36,8 @@ if CUDA:
 # DataLoader instances will load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
+g = dgl.DGLGraph()
+
 dataset = MiniGCDataset(80, 10, 20)
 graph, label = dataset[0]
 fig, ax = plt.subplots()
@@ -125,27 +127,17 @@ model = vae
 if CUDA:
     model.cuda()
 
-
 trainset = MiniGCDataset(320, 10, 20)
 testset = MiniGCDataset(80, 10, 20)
-# Download or load downloaded MNIST dataset
-# shuffle data at every epoch
+
 train_loader = torch.utils.data.DataLoader(
     datasets.MNIST('data', train=True, download=True,
                    transform=transforms.ToTensor()),
     batch_size=BATCH_SIZE, shuffle=True, **kwargs)
 
-# Same for test data
 test_loader = torch.utils.data.DataLoader(
     datasets.MNIST('data', train=False, transform=transforms.ToTensor()),
     batch_size=BATCH_SIZE, shuffle=True, **kwargs)
-
-train_loader =  DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True,
-                         collate_fn=collate, **kwargs)
-
-test_loader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=True,
-                         collate_fn=collate, **kwargs)
-
 
 def loss_function(recon_g, g, mu, log_var):
     BCE = F.binary_cross_entropy(recon_g, g.view(-1, 784), reduction='sum')
