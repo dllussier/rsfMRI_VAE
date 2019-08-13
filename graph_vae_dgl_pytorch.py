@@ -123,11 +123,8 @@ if CUDA:
 trainset = MiniGCDataset(320, 10, 20)
 testset = MiniGCDataset(80, 10, 20)
 
-train_loader = DataLoader(trainset, train=True, download=True, transform=transforms.ToTensor()),
-    batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
-
-test_loader = DataLoader(testset, train=False, transform=transforms.ToTensor()),
-    batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
+train_loader = DataLoader(trainset, download=True, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
+test_loader = DataLoader(testset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
 
 def loss_function(recon_g, g, mu, log_var):
     BCE = F.binary_cross_entropy(recon_g, g.view(-1, 784), reduction='sum')
