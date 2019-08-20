@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
+import networkx as nx
+import matplotlib.pyplot as plt
+
 from nilearn import datasets
 from nilearn import input_data
-import matplotlib.pyplot as plt
-from nilearn.connectome import ConnectivityMeasure
 from nilearn import plotting
+from nilearn.connectome import ConnectivityMeasure
+
 
 #import dataset
 abide_dataset = datasets.fetch_abide_pcp(derivatives=['func_preproc'],
