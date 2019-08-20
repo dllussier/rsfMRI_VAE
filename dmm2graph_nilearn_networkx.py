@@ -69,3 +69,10 @@ plotting.plot_connectome(partial_correlation_matrix, dmn_coords,
                          display_mode='lyrz')
 
 plotting.show()
+
+#draw connectome to networkx graph
+G = nx.MultiGraph()
+G.add_nodes_from(dmn_coords)
+a = partial_correlation_matrix
+D = nx.to_networkx_graph(a, create_using=nx.MultiGraph)
+keys = G.add_edges_from(D.edges)
