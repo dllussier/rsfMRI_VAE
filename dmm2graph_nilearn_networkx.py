@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#edited from http://nilearn.github.io/auto_examples/03_connectivity/plot_adhd_spheres.html
 
 from nilearn import datasets
 from nilearn import input_data
@@ -25,9 +24,9 @@ print(abide_dataset.keys())
 dmn_coords = [(0, -52, 18), (-46, -68, 32), (46, -68, 32), (1, 50, -5)]
 labels = [
           'Posterior Cingulate Cortex',
-          'Left Temporoparietal junction',
-          'Right Temporoparietal junction',
-          'Medial prefrontal cortex',
+          'Left Temporoparietal Junction',
+          'Right Temporoparietal Junction',
+          'Medial Prefrontal Cortex',
          ]
 
 #Extracts signal from sphere around DMN seeds
