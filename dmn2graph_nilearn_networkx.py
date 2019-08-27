@@ -15,8 +15,7 @@ def plot_matrices(matrices, matrix_kind):
     fig = plt.figure(figsize=(n_matrices * 4, 4))
     for n_subject, matrix in enumerate(matrices):
         plt.subplot(1, n_matrices, n_subject + 1)
-        matrix = matrix.copy()  # avoid side effects
-        # Set diagonal to zero, for better visualization
+        matrix = matrix.copy() 
         np.fill_diagonal(matrix, 0)
         vmax = np.max(np.abs(matrix))
         title = '{0}, subject {1}'.format(matrix_kind, n_subject)
