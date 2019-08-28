@@ -2,6 +2,7 @@
 
 import torch
 import dgl
+import numpy as np
 import networkx as nx
 
 import torch.utils.data
@@ -11,9 +12,9 @@ import dgl.function as fn
 
 from torch import nn
 from torch.nn import functional as F
-from torchvision import datasets, transforms
+from scipy.misc import imread
+#from torchvision import datasets, transforms
 from torchvision.utils import save_image
-from dgl.data import MiniGCDataset
 from torch.utils.data import DataLoader
 
 # changed configuration to this instead of argparse for easier interaction
@@ -33,29 +34,25 @@ if CUDA:
 #load dataloader instances directly into gpu memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
-dataset = MiniGCDataset(80, 10, 20)
-graph, label = dataset[0]
+g = dgl.MultiGraph()
+graph, label = data[0]
 fig, ax = plt.subplots()
-nx.draw(graph.to_networkx(), ax=ax)
+nx.draw(g.to_networkx(), ax=ax)
 ax.set_title('Class: {:d}'.format(label))
 plt.show()
 
-def collate(samples): #samples is a list of pairs
-    graphs, labels = map(list, zip(*samples))
-    batched_graph = dgl.batch(graphs)
-    return batched_graph, torch.tensor(labels)
-
 #sends message of node feature h
-msg = fn.copy_src(src='h', out='m')
+def gcn_msg(edge):
+    msg = edge.src['h'] * edge.src['norm']
+    return {'m': msg}
 
-def reduce(nodes):
+def reduce(node):
     """Take an average over all neighbor node features hu and use it to
     overwrite the original node feature."""
-    accum = torch.mean(nodes.mailbox['m'], 1)
+    accum = torch.sum(node.mailbox['m'], 1) * node.data['norm']
     return {'h': accum}
 
 class NodeApplyModule(nn.Module):
-    """Update the node feature hv with ReLU(Whv+b)."""
     def __init__(self, in_feats, out_feats, activation):
         super(NodeApplyModule, self).__init__()
         self.linear = nn.Linear(in_feats, out_feats)
@@ -74,9 +71,10 @@ class GCN(nn.Module):
 
     def forward(self, g, feature):   
         g.ndata['h'] = feature  # Initialize the node features with h.
-        g.update_all(msg, reduce)
+        g.update_all(gcn_msg, reduce)
         g.apply_nodes(func=self.apply_mod)
         return g.ndata.pop('h')
+
 
 #vae using gcn
 class VAE(nn.Module):
@@ -109,9 +107,9 @@ class VAE(nn.Module):
         return self.fc6(h)
     
     def forward(self, g):
-        mu, log_var = self.encoder(g.view(-1, 784))
+        mu, log_var = self.encoder(g)
         z = self.sampling(mu, log_var)
-        return g, self.decoder(z), mu, log_var
+        return self.decoder(z), mu, log_var
 
 vae = VAE(g_dim=784, h_dim1= 512, h_dim2=256, z_dim=ZDIMS)   
 
@@ -119,13 +117,44 @@ model = vae
 if CUDA:
     model.cuda()
 
-#train and test
-trainset = MiniGCDataset(320, 10, 20)
-testset = MiniGCDataset(80, 10, 20)
+#load data
+'''
+def read_dataset(path):
+    images_path = f"{path}/images"
+    labels_path = f"{path}/labels"
 
-train_loader = DataLoader(trainset, download=True, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
-test_loader = DataLoader(testset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True, **kwargs)
+    images = np.zeros((61, 496, 768)) #edit these matrices
+    labels1 = np.zeros((61, 496, 768))
+    labels2 = np.zeros((61, 496, 768))
+    labels3 = np.zeros((61, 496, 768))
+    
+    for i in range(61):
+        img_file_path = f"{images_path}/images_{i}.png"
+        lbl_file_path1 = f"{labels_path}/class1/_{i}.png"
+        lbl_file_path2 = f"{labels_path}/class2/_{i}.png"
+        lbl_file_path3 = f"{labels_path}/class17/_{i}.png"
+        
+        images[i] = imread(img_file_path)
+        labels1[i] = imread(lbl_file_path1)
+        labels2[i] = imread(lbl_file_path2)
+        labels3[i] = imread(lbl_file_path3)
+        return images,labels1 ,labels2,labels3
 
+#ref: https://pytorch.org/docs/stable/data.html
+#ref: https://towardsdatascience.com/how-to-build-custom-dataloader-for-your-own-dataset-ae7fd9a40be6        
+        
+images, labels1,labels2,labels3 = read_dataset("{filepath}/train")
+
+testimages, mask1 ,mask2,mask3 = read_dataset("{filepath}/test")
+'''
+
+trainset = read_dataset("{filepath}/train")
+testset = read_dataset("{filepath}/test")
+
+train_loader = DataLoader(trainset, batch_size=BATCH_SIZE, collate_fn=None, shuffle=True, **kwargs)
+test_loader = DataLoader(testset, batch_size=BATCH_SIZE, collate_fn=None, shuffle=True, **kwargs)
+
+#loss function
 def loss_function(recon_g, g, mu, log_var):
     BCE = F.binary_cross_entropy(recon_g, g.view(-1, 784), reduction='sum')
     KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
@@ -133,6 +162,7 @@ def loss_function(recon_g, g, mu, log_var):
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
+#train and test
 def train(epoch):
     vae.train()
     train_loss = 0
@@ -222,4 +252,3 @@ if __name__ == "__main__":
             sample = model.decode(sample).cpu()
             save_image(sample.data.view(BATCH_SIZE, 2, 28, 28),
                        '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
-    
