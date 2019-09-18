@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import torch
 import dgl
 import numpy as np
@@ -9,11 +10,13 @@ import torch.utils.data
 import matplotlib.pyplot as plt
 import torch.optim as optim
 import dgl.function as fn
+from shutil import copyfile
 
+from glob import glob
+from tqdm import tqdm
 from torch import nn
 from torch.nn import functional as F
-from scipy.misc import imread
-#from torchvision import datasets, transforms
+from torchvision import datasets
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader
 
@@ -31,8 +34,27 @@ torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
     
-#load dataloader instances directly into gpu memory
-kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
+#split training and test data
+matrices_dir = '../data/matrices/'
+train_dir = '../data/graphs/train/'
+test_dir = '../data/graphs/test/'
+for d in [train_dir,test_dir]:
+    if not os.path.exists(d):
+        os.mkdir(d)
+
+all_files = glob(os.path.join(matrices_dir,"*.nii.gz"))
+
+train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345)
+
+for f in tqdm(train):
+    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
+    
+for f in tqdm(test):
+    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
+
+trainset = datasets.ImageFolder(root='../data/train/')
+testset = datasets.ImageFolder(root='../data/test/')
+
 
 g = dgl.MultiGraph()
 graph, label = data[0]
@@ -40,6 +62,9 @@ fig, ax = plt.subplots()
 nx.draw(g.to_networkx(), ax=ax)
 ax.set_title('Class: {:d}'.format(label))
 plt.show()
+
+#load dataloader instances directly into gpu memory
+kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
 #sends message of node feature h
 def gcn_msg(edge):
@@ -118,38 +143,9 @@ if CUDA:
     model.cuda()
 
 #load data
-'''
-def read_dataset(path):
-    images_path = f"{path}/images"
-    labels_path = f"{path}/labels"
 
-    images = np.zeros((61, 496, 768)) #edit these matrices
-    labels1 = np.zeros((61, 496, 768))
-    labels2 = np.zeros((61, 496, 768))
-    labels3 = np.zeros((61, 496, 768))
-    
-    for i in range(61):
-        img_file_path = f"{images_path}/images_{i}.png"
-        lbl_file_path1 = f"{labels_path}/class1/_{i}.png"
-        lbl_file_path2 = f"{labels_path}/class2/_{i}.png"
-        lbl_file_path3 = f"{labels_path}/class17/_{i}.png"
-        
-        images[i] = imread(img_file_path)
-        labels1[i] = imread(lbl_file_path1)
-        labels2[i] = imread(lbl_file_path2)
-        labels3[i] = imread(lbl_file_path3)
-        return images,labels1 ,labels2,labels3
-
-#ref: https://pytorch.org/docs/stable/data.html
-#ref: https://towardsdatascience.com/how-to-build-custom-dataloader-for-your-own-dataset-ae7fd9a40be6        
-        
-images, labels1,labels2,labels3 = read_dataset("{filepath}/train")
-
-testimages, mask1 ,mask2,mask3 = read_dataset("{filepath}/test")
-'''
-
-trainset = read_dataset("{filepath}/train")
-testset = read_dataset("{filepath}/test")
+trainset = read_dataset("../data/graphs/train/")
+testset = read_dataset("../data/graphs/test/")
 
 train_loader = DataLoader(trainset, batch_size=BATCH_SIZE, collate_fn=None, shuffle=True, **kwargs)
 test_loader = DataLoader(testset, batch_size=BATCH_SIZE, collate_fn=None, shuffle=True, **kwargs)
@@ -252,3 +248,4 @@ if __name__ == "__main__":
             sample = model.decode(sample).cpu()
             save_image(sample.data.view(BATCH_SIZE, 2, 28, 28),
                        '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
+
