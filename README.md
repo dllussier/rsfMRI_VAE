@@ -1,2 +1,2 @@
-# fmri_vq_vae
+# rsfMRI_VAE
 #work in progress
