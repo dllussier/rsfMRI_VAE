@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python3
 
 import torch
@@ -22,23 +23,19 @@ EPOCHS = 50
 ZDIMS = 50
 CLASSES = 10 #this needs added to the model
 
-
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-# load tensors directly into GPU memory
-kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
-
 #split training and test data
-data_dir = '../data/volume_of_interest/'
+volumes_dir = '../data/volumes/'
 train_dir = '../data/train/'
 test_dir = '../data/test/'
 for d in [train_dir,test_dir]:
     if not os.path.exists(d):
         os.mkdir(d)
 
-all_files = glob(os.path.join(data_dir,"*.nii.gz"))
+all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
 
 train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345)
 
@@ -50,6 +47,9 @@ for f in tqdm(test):
 
 trainset = datasets.ImageFolder(root='../data/train/')
 testset = datasets.ImageFolder(root='../data/test/')
+
+# load tensors directly into GPU memory
+kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
 #define model
 class Flatten(nn.Module):
