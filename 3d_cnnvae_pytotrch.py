@@ -7,11 +7,12 @@ import torch.utils.data
 from glob import glob
 from tqdm import tqdm
 from shutil import copyfile
+from nilearn import datasets
 from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision import datasets, transforms
+from torchvision import transforms
 from torchvision.utils import save_image
 
 
@@ -27,26 +28,48 @@ torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-#split training and test data
+#import atlas
+atlas = datasets.fetch_atlas_msdl()
+# Loading atlas image stored in 'maps'
+atlas_filename = atlas['maps']
+# Loading atlas data stored in 'labels'
+labels = atlas['labels']
+
+#import dataset
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200'],
+                        n_subjects=10)
+
+func = data.func_preproc #4D data
+
+# print basic information on the dataset
+print('First functional nifti image (4D) is at: %s' % #location of image
+      func[0])  
+print(data.keys())
+
+#resize data and add classification labels
+
+
+#split training and test data 
 volumes_dir = '../data/volumes/'
-train_dir = '../data/train/'
-test_dir = '../data/test/'
+train_dir = '../data/volumes/train/'
+test_dir = '../data/volumes/test/'
 for d in [train_dir,test_dir]:
     if not os.path.exists(d):
         os.mkdir(d)
 
 all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
 
-train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345)
+train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
 
 for f in tqdm(train):
     copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
     
 for f in tqdm(test):
     copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
+    
+    
+#mask data, extract volumes and convert to np array/torch tensors
 
-trainset = datasets.ImageFolder(root='../data/train/')
-testset = datasets.ImageFolder(root='../data/test/')
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
@@ -64,7 +87,7 @@ class CNNVAE(nn.Module):
     def __init__(self, image_channels=3, h_dim=1024, z_dim=ZDIMS, n_classes=CLASSES):
         super(CNNVAE, self).__init__()
 
-        #decoder cnn layers
+        #encoder cnn layers
         self.encoder = nn.Sequential(
             nn.Conv3d(image_channels, 32, kernel_size=4, stride=2),
             nn.ReLU(),
@@ -138,14 +161,17 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
-#load data
+#load data but do not reshuffle 
+trainset = datasets.ImageFolder(root=train_dir)
+testset = datasets.ImageFolder(root=test_dir)
+
 train_loader = torch.utils.data.DataLoader(
         trainset('data', train=True, batch_size=BATCH_SIZE, 
-                shuffle=True, **kwargs))
+                shuffle=False, **kwargs))
 
 test_loader = torch.utils.data.DataLoader(
         testset('data', train=False, batch_size=BATCH_SIZE, 
-                shuffle=True, **kwargs))
+                shuffle=False, **kwargs))
 
 #train and test model
 def train(epoch):
