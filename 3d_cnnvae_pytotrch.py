@@ -2,7 +2,9 @@
 
 import torch
 import os
+import re
 import pandas as pd
+import numpy as np
 import torch.utils.data
 from glob import glob
 from tqdm import tqdm
@@ -44,6 +46,7 @@ func = data.func_preproc #4D data
 target_func = data.func_mask
 reshaped = data.func_preproc_reshaped
 resample = data.func_preproc_resample
+mask_reshaped = data.mask_reshaped
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' % #location of image
@@ -66,15 +69,40 @@ n_files = len(names)
 for idx in range(len(func)):
     ###resample for (voxel_size = (2.386364,2.386364,2.4))
     resampled = resample_img(func,
-                             target_affine  = target_func.affine,
+                             target_affine  = target_func.affine, #check this to see if parcellation is better
                              target_shape   = (88,88,66))
     resampled.to_filename('func_preproc_reshaped.nii.gz')   
     
 #mask data, extract volumes, save with no site id, convert to np array/torch tensors
+saving_dir  = './data/volumes/'
+if not os.path.exists(saving_dir):
+    os.mkdir(saving_dir)
 
+for idx in tqdm(range(len(reshaped))):
+    picked_data = reshaped[idx]
+    sub_name = re.findall(r'CSI\d',picked_data)[0]
+    n_session = int(re.findall(r'\d+',re.findall(r'Sess-\d+_',picked_data)[0])[0])
+    n_run = int(re.findall(r'\d+',re.findall(r'Run-\d+',picked_data)[0])[0])
+    picked_data_mask = target_func
 
+    ###resize mask
+    
+    #reshape mask
+    resampled = resample_img(picked_data_mask,
+                             target_affine = target_func.affine, #check this for proper target
+                             target_shape = (88,88,66))
+    resampled.to_filename('mask_reshaped.nii.gz')
 
+    ###binarize mask
 
+    #mask volumes
+    masker = NiftiMasker(mask_img = mask_reshaped)
+    BOLD = masker.fit_transform(picked_data)
+    timepoints = np.arange(start = 0,stop = 400,step = 2)[:BOLD.shape[0]]
+    df = pd.DataFrame()
+    df['timepoints'] = timepoints
+
+    ###extract and rename individual volumes
 
 
 # load tensors directly into GPU memory
