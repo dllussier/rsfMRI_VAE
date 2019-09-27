@@ -18,7 +18,6 @@ from torchvision.utils import save_image
 from nilearn.input_data import NiftiMasker
 from nilearn.image import resample_img
 
-
 CUDA = True
 SEED = 1
 BATCH_SIZE = 32
@@ -103,7 +102,6 @@ for idx in tqdm(range(len(reshaped))):
     df['timepoints'] = timepoints
 
     ###extract and rename individual volumes
-
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
