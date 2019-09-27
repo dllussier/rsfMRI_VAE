@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 
 import torch
@@ -43,6 +42,8 @@ data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200', 'func_
 
 func = data.func_preproc #4D data
 target_func = data.func_mask
+reshaped = data.func_preproc_reshaped
+resample = data.func_preproc_resample
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' % #location of image
@@ -60,11 +61,10 @@ df = pd.read_csv('/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv', skipinitia
 #generate list of filenames
 names = df.FILE_ID.tolist()
 n_files = len(names)
-#os.remove("metadata.csv")
-
 
 #resize and reshape images
 for idx in range(len(func)):
+    ###resample for (voxel_size = (2.386364,2.386364,2.4))
     resampled = resample_img(func,
                              target_affine  = target_func.affine,
                              target_shape   = (88,88,66))
