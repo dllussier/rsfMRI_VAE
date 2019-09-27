@@ -3,6 +3,7 @@
 
 import torch
 import os
+import pandas as pd
 import torch.utils.data
 from glob import glob
 from tqdm import tqdm
@@ -12,8 +13,9 @@ from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision import transforms
 from torchvision.utils import save_image
+from nilearn.input_data import NiftiMasker
+from nilearn.image import resample_img
 
 
 CUDA = True
@@ -36,39 +38,43 @@ atlas_filename = atlas['maps']
 labels = atlas['labels']
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200'],
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200', 'func_mask'],
                         n_subjects=10)
 
 func = data.func_preproc #4D data
+target_func = data.func_mask
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' % #location of image
       func[0])  
 print(data.keys())
 
-#resize data and add classification labels
+#fetching and processing list of names of files
+###to dos: assign site classification, remove site id from subject name, randomize list
+input_file = "/home/lussier/nilearn_data/ABIDE_pcp/Phenotypic_V1_0b_preprocessed1.csv"
+f = pd.read_csv(input_file, header = 0,  sep=',')
+
+f.to_csv("/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv")
+df = pd.read_csv('/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv', skipinitialspace=True, usecols = ['FILE_ID'])
+
+#generate list of filenames
+names = df.FILE_ID.tolist()
+n_files = len(names)
+#os.remove("metadata.csv")
 
 
-#split training and test data 
-volumes_dir = '../data/volumes/'
-train_dir = '../data/volumes/train/'
-test_dir = '../data/volumes/test/'
-for d in [train_dir,test_dir]:
-    if not os.path.exists(d):
-        os.mkdir(d)
-
-all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
-
-train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
-
-for f in tqdm(train):
-    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
+#resize and reshape images
+for idx in range(len(func)):
+    resampled = resample_img(func,
+                             target_affine  = target_func.affine,
+                             target_shape   = (88,88,66))
+    resampled.to_filename('func_preproc_reshaped.nii.gz')   
     
-for f in tqdm(test):
-    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
-    
-    
-#mask data, extract volumes and convert to np array/torch tensors
+#mask data, extract volumes, save with no site id, convert to np array/torch tensors
+
+
+
+
 
 
 # load tensors directly into GPU memory
@@ -160,6 +166,25 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
     return BCE + KLD, BCE, KLD
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+#split training and test data 
+####edit this to pull from list of randomized subject ids that pull from folders
+volumes_dir = '../data/volumes/' 
+train_dir = '../data/train/'
+test_dir = '../data/test/'
+for d in [train_dir,test_dir]:
+    if not os.path.exists(d):
+        os.mkdir(d)
+
+all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
+
+train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
+
+for f in tqdm(train):
+    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
+    
+for f in tqdm(test):
+    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
 
 #load data but do not reshuffle 
 trainset = datasets.ImageFolder(root=train_dir)
