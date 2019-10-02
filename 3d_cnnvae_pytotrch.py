@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
 import torch
 import os
@@ -20,7 +21,7 @@ from nilearn.image import resample_img
 
 CUDA = True
 SEED = 1
-BATCH_SIZE = 32
+BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 50
 ZDIMS = 50
@@ -42,7 +43,8 @@ data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200', 'func_
                         n_subjects=10)
 
 func = data.func_preproc #4D data
-target_func = data.func_mask
+target_func = data.rois_cc200
+func_mask = data.func_mask
 reshaped = data.func_preproc_reshaped
 resample = data.func_preproc_resample
 mask_reshaped = data.mask_reshaped
@@ -68,7 +70,7 @@ n_files = len(names)
 for idx in range(len(func)):
     ###resample for (voxel_size = (2.386364,2.386364,2.4))
     resampled = resample_img(func,
-                             target_affine  = target_func.affine, #check this to see if parcellation is better
+                             target_affine  = target_func.affine,
                              target_shape   = (88,88,66))
     resampled.to_filename('func_preproc_reshaped.nii.gz')   
     
@@ -82,13 +84,13 @@ for idx in tqdm(range(len(reshaped))):
     sub_name = re.findall(r'CSI\d',picked_data)[0]
     n_session = int(re.findall(r'\d+',re.findall(r'Sess-\d+_',picked_data)[0])[0])
     n_run = int(re.findall(r'\d+',re.findall(r'Run-\d+',picked_data)[0])[0])
-    picked_data_mask = target_func
+    picked_data_mask = func_mask
 
     ###resize mask
     
     #reshape mask
     resampled = resample_img(picked_data_mask,
-                             target_affine = target_func.affine, #check this for proper target
+                             target_affine = target_func.affine,
                              target_shape = (88,88,66))
     resampled.to_filename('mask_reshaped.nii.gz')
 
