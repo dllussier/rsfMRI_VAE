@@ -97,6 +97,25 @@ for idx in tqdm(range(len(func))):
                                    f'{sub_name}_volume{ii+1}.nii.gz')
         back_to_3D.to_filename(saving_name)
         
+
+#randomize and split training and test data 
+volumes_dir = './data/volumes/' 
+train_dir = './data/volumes/train/'
+test_dir = './data/volumes/test/'
+for d in [train_dir,test_dir]:
+    if not os.path.exists(d):
+        os.mkdir(d)
+
+all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
+
+train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
+
+for f in tqdm(train):
+    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
+    
+for f in tqdm(test):
+    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
+        
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
@@ -186,25 +205,6 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
     return BCE + KLD, BCE, KLD
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
-#split training and test data 
-####edit this to pull from list of randomized subject ids that pull from folders
-volumes_dir = './data/volumes/' 
-train_dir = './data/volumes/train/'
-test_dir = './data/volumes/test/'
-for d in [train_dir,test_dir]:
-    if not os.path.exists(d):
-        os.mkdir(d)
-
-all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
-
-train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
-
-for f in tqdm(train):
-    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
-    
-for f in tqdm(test):
-    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
 
 #load data but do not reshuffle 
 trainset = datasets.ImageFolder(root=train_dir)
