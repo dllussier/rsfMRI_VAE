@@ -63,7 +63,7 @@ if not os.path.exists(saving_dir):
 
 for idx in tqdm(range(len(func))):
     func_data = func[idx]
-    sub_name = re.findall(r'CSI\d',func_data)[0] #edit to remove site names
+    sub_name = re.findall(r'_\d',func_data)[0] #edit to remove site names but keep subject numbers
 
     #mask volumes
     epi_mask = masking.compute_epi_mask(func)
@@ -71,12 +71,12 @@ for idx in tqdm(range(len(func))):
     BOLD = masker.fit_transform(func_data) 
     
     #designate timepoints for volumes
-    timepoints = np.arange(start = 0,stop = 400,step = 2)[:BOLD.shape[0]]
+    timepoints = np.arange(start = 0, stop = 400, step = 2)[:BOLD.shape[0]]
     df = pd.DataFrame()
     df['timepoints'] = timepoints
     
     #extract individual volumes
-    trial_start = np.arange(start = 6,stop = timepoints.max() - 12,step = 10)
+    trial_start = np.arange(start = 0, stop = timepoints.max(), step = 1)
     interest_start = trial_start + 0
     interest_stop = trial_start + 2
     
@@ -96,7 +96,7 @@ for idx in tqdm(range(len(func))):
         saving_name = os.path.join(saving_dir,
                                    f'{sub_name}_volume{ii+1}.nii.gz')
         back_to_3D.to_filename(saving_name)
-
+        
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
