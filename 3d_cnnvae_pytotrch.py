@@ -10,14 +10,14 @@ import torch.utils.data
 from glob import glob
 from tqdm import tqdm
 from shutil import copyfile
-from nilearn import datasets
+from nilearn import datasets, masking
 from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision.utils import save_image
 from nilearn.input_data import NiftiMasker
-from nilearn.image import resample_img
+from nilearn.image import resample_img, iter_img
 
 CUDA = True
 SEED = 1
@@ -31,23 +31,13 @@ torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-#import atlas
-atlas = datasets.fetch_atlas_msdl()
-# Loading atlas image stored in 'maps'
-atlas_filename = atlas['maps']
-# Loading atlas data stored in 'labels'
-labels = atlas['labels']
-
 #import dataset
 data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200', 'func_mask'],
-                        n_subjects=10)
+                        n_subjects=5)
 
 func = data.func_preproc #4D data
 target_func = data.rois_cc200
 func_mask = data.func_mask
-reshaped = data.func_preproc_reshaped
-resample = data.func_preproc_resample
-mask_reshaped = data.mask_reshaped
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' % #location of image
@@ -55,55 +45,57 @@ print('First functional nifti image (4D) is at: %s' % #location of image
 print(data.keys())
 
 #fetching and processing list of names of files
-###to dos: assign site classification, remove site id from subject name, randomize list
-input_file = "/home/lussier/nilearn_data/ABIDE_pcp/Phenotypic_V1_0b_preprocessed1.csv"
-f = pd.read_csv(input_file, header = 0,  sep=',')
+###to dos: assign site classification, remove site id from subject name
+#input_file = "/home/lussier/nilearn_data/ABIDE_pcp/Phenotypic_V1_0b_preprocessed1.csv"
+#f = pd.read_csv(input_file, header = 0,  sep=',')
 
-f.to_csv("/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv")
-df = pd.read_csv('/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv', skipinitialspace=True, usecols = ['FILE_ID'])
+#f.to_csv("/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv")
+#df = pd.read_csv('/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv', skipinitialspace=True, usecols = ['FILE_ID'])
 
 #generate list of filenames
-names = df.FILE_ID.tolist()
-n_files = len(names)
-
-#resize and reshape images
-for idx in range(len(func)):
-    ###resample for (voxel_size = (2.386364,2.386364,2.4))
-    resampled = resample_img(func,
-                             target_affine  = target_func.affine,
-                             target_shape   = (88,88,66))
-    resampled.to_filename('func_preproc_reshaped.nii.gz')   
+#names = df.FILE_ID.tolist()
+#n_files = len(names)
     
 #mask data, extract volumes, save with no site id, convert to np array/torch tensors
 saving_dir  = './data/volumes/'
 if not os.path.exists(saving_dir):
     os.mkdir(saving_dir)
 
-for idx in tqdm(range(len(reshaped))):
-    picked_data = reshaped[idx]
-    sub_name = re.findall(r'CSI\d',picked_data)[0]
-    n_session = int(re.findall(r'\d+',re.findall(r'Sess-\d+_',picked_data)[0])[0])
-    n_run = int(re.findall(r'\d+',re.findall(r'Run-\d+',picked_data)[0])[0])
-    picked_data_mask = func_mask
-
-    ###resize mask
-    
-    #reshape mask
-    resampled = resample_img(picked_data_mask,
-                             target_affine = target_func.affine,
-                             target_shape = (88,88,66))
-    resampled.to_filename('mask_reshaped.nii.gz')
-
-    ###binarize mask
+for idx in tqdm(range(len(func))):
+    func_data = func[idx]
+    sub_name = re.findall(r'CSI\d',func_data)[0] #edit to remove site names
 
     #mask volumes
-    masker = NiftiMasker(mask_img = mask_reshaped)
-    BOLD = masker.fit_transform(picked_data)
+    epi_mask = masking.compute_epi_mask(func)
+    masker = NiftiMasker(mask_img=epi_mask) 
+    BOLD = masker.fit_transform(func_data) 
+    
+    #designate timepoints for volumes
     timepoints = np.arange(start = 0,stop = 400,step = 2)[:BOLD.shape[0]]
     df = pd.DataFrame()
     df['timepoints'] = timepoints
+    
+    #extract individual volumes
+    trial_start = np.arange(start = 6,stop = timepoints.max() - 12,step = 10)
+    interest_start = trial_start + 0
+    interest_stop = trial_start + 2
+    
+    temp = []
+    for time in timepoints:
+        if any([np.logical_and(interval[0] <= time,time <= interval[1]) for interval in zip(interest_start,interest_stop)]):
+            temp.append(1)
+        else:
+            temp.append(0)
+    df['volumes'] = temp
+    idx_picked = list(df[df['volumes'] == 1].index)
+    BOLD_picked = BOLD[idx_picked]
 
-    ###extract and rename individual volumes
+    #save volumes as 3d samples    
+    for ii,sample in enumerate(BOLD_picked):
+        back_to_3D  = masker.inverse_transform(sample)
+        saving_name = os.path.join(saving_dir,
+                                   f'{sub_name}_volume{ii+1}.nii.gz')
+        back_to_3D.to_filename(saving_name)
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
@@ -197,9 +189,9 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 #split training and test data 
 ####edit this to pull from list of randomized subject ids that pull from folders
-volumes_dir = '../data/volumes/' 
-train_dir = '../data/train/'
-test_dir = '../data/test/'
+volumes_dir = './data/volumes/' 
+train_dir = './data/volumes/train/'
+test_dir = './data/volumes/test/'
 for d in [train_dir,test_dir]:
     if not os.path.exists(d):
         os.mkdir(d)
