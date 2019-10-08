@@ -1,6 +1,3 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-
 import torch
 import os
 import re
@@ -11,13 +8,14 @@ from glob import glob
 from tqdm import tqdm
 from shutil import copyfile
 from nilearn import datasets, masking
+from nibabel import load as load_fmri
 from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision.utils import save_image
+from torch.utils.data import DataLoader, Dataset
 from nilearn.input_data import NiftiMasker
-from nilearn.image import resample_img, iter_img
 
 CUDA = True
 SEED = 1
@@ -63,7 +61,7 @@ if not os.path.exists(saving_dir):
 
 for idx in tqdm(range(len(func))):
     func_data = func[idx]
-    sub_name = re.findall(r'_\d',func_data)[0] #edit to remove site names but keep subject numbers
+    sub_name = re.findall(r'_\d',func_data)[0] #edit to remove site names but keep numbers 
 
     #mask volumes
     epi_mask = masking.compute_epi_mask(func)
@@ -96,7 +94,6 @@ for idx in tqdm(range(len(func))):
         saving_name = os.path.join(saving_dir,
                                    f'{sub_name}_volume{ii+1}.nii.gz')
         back_to_3D.to_filename(saving_name)
-        
 
 #randomize and split training and test data 
 volumes_dir = './data/volumes/' 
@@ -115,7 +112,7 @@ for f in tqdm(train):
     
 for f in tqdm(test):
     copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
-        
+
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
@@ -128,6 +125,7 @@ class UnFlatten(nn.Module):
     def forward(self, input, size=1024):
         return input.view(input.size(0), size, 1, 1)
 
+###add pooling
 class CNNVAE(nn.Module):
     def __init__(self, image_channels=3, h_dim=1024, z_dim=ZDIMS, n_classes=CLASSES):
         super(CNNVAE, self).__init__()
@@ -206,17 +204,30 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
-#load data but do not reshuffle 
-trainset = datasets.ImageFolder(root=train_dir)
-testset = datasets.ImageFolder(root=test_dir)
+#custom dataset for loader 
+class CustomDataset(Dataset):    
+    def __init__(self,data_root):
+        self.samples = []       
+        for item in glob(os.path.join(data_root,'*.nii.gz')):
+            self.samples.append(item)
+            
+    def __len__(self):
+        return len(self.samples)
 
-train_loader = torch.utils.data.DataLoader(
-        trainset('data', train=True, batch_size=BATCH_SIZE, 
-                shuffle=False, **kwargs))
+    def __getitem__(self, idx):
+        temp = load_fmri(self.samples[idx]).get_data()
+        max_weight = temp.max()
+        temp = temp / max_weight
+        min_weight = np.abs(temp.min())
+        temp = temp + min_weight
+        return temp,max_weight,min_weight
 
-test_loader = torch.utils.data.DataLoader(
-        testset('data', train=False, batch_size=BATCH_SIZE, 
-                shuffle=False, **kwargs))
+#load dataset
+trainset = CustomDataset(train_dir)
+testset = CustomDataset(test_dir)
+
+train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
+test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
 
 #train and test model
 def train(epoch):
@@ -263,6 +274,7 @@ def test(epoch):
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
+###parameters need editing
 for epoch in range(1, EPOCHS + 1):
     train(epoch)
     test(epoch)    
