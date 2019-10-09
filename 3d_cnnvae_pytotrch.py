@@ -24,9 +24,10 @@ LOG_INTERVAL = 10
 EPOCHS = 50
 ZDIMS = 50
 CLASSES = 10 #to be added
-LEARN_RATE = 1e-4
-STEP_SIZE = 1 #to be added
-GAMMA = 0.9 #to be added
+OPT_LEARN_RATE = 1e-4
+STEP_SIZE = 1 
+GAMMA = 0.9 
+HDIM=1024
 
 
 torch.manual_seed(SEED)
@@ -34,12 +35,9 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], #'rois_cc200', 'func_mask'],
-                        n_subjects=5)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=5)
 
 func = data.func_preproc #4D data
-#target_func = data.rois_cc200
-#func_mask = data.func_mask
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' % #location of image
@@ -130,24 +128,27 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 ###add pooling
-### missing missing channel deminsion
+### missing missing channel deminsion? 
+###RuntimeError: Expected 5-dimensional input for 5-dimensional weight 32 3 4 4, but got 4-dimensional input of size [1, 61, 73, 61] instead
 class CNNVAE(nn.Module):
-    def __init__(self, image_channels=3, h_dim=1024, z_dim=ZDIMS, n_classes=CLASSES):
+    def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS): #, n_classes=CLASSES):
         super(CNNVAE, self).__init__()
 
         #encoder cnn layers
         self.encoder = nn.Sequential(
-            nn.Conv3d(image_channels, 32, kernel_size=4, stride=2),
+            nn.Conv3d(image_channels, 16, kernel_size=(3,3,3), stride=2), 
             nn.ReLU(),
-            nn.Conv3d(32, 64, kernel_size=4, stride=2),
+            nn.MaxPool3d(kernel_size=4, stride=2), #padding=0, dilation=1, return_indices=False, ceil_mode=False),
+            nn.Conv3d(16, 32, kernel_size=(3,3,3), stride=(3,3,3)),
             nn.ReLU(),
-            nn.Conv3d(64, 128, kernel_size=4, stride=2),
+            nn.MaxPool3d(kernel_size=4, stride=None),
+            nn.Conv3d(32, 32, kernel_size=(2,2,2), stride=(2,2,2)),
             nn.ReLU(),
-            nn.Conv3d(128, 256, kernel_size=4, stride=2),
-            nn.ReLU(),
+            nn.MaxPool3d(kernel_size=4, stride=None),
             Flatten()
         )
-        
+        #nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros')
+
         self.fc1 = nn.Linear(h_dim, z_dim) #mu
         self.fc2 = nn.Linear(h_dim, z_dim) #logvar
         self.fc3 = nn.Linear(z_dim, h_dim)
@@ -155,13 +156,14 @@ class CNNVAE(nn.Module):
         #decoder cnn layers
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.ConvTranspose3d(h_dim, 128, kernel_size=5, stride=2),
+            nn.MaxUnpool3d(kernel_size=5, stride=None, padding=0),
+            nn.ConvTranspose3d(h_dim, 32, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.ConvTranspose3d(128, 64, kernel_size=5, stride=2),
+            nn.MaxUnpool3d(kernel_size=5, stride=None, padding=0), ##check order of layers
+            nn.ConvTranspose3d(32, 16, kernel_size=5, stride=2),
             nn.ReLU(),
+            nn.MaxUnpool3d(kernel_size=5, stride=None, padding=0),
             nn.ConvTranspose3d(64, 32, kernel_size=6, stride=2),
-            nn.ReLU(),
-            nn.ConvTranspose3d(32, image_channels, kernel_size=6, stride=2),
             nn.Sigmoid(),
         )
 
@@ -199,7 +201,7 @@ if CUDA:
     model.cuda()
 
 #load previous state   
-model.load_state_dict(torch.load('cnnvae.torch', map_location='cpu'))
+#model.load_state_dict(torch.load('cnnvae.torch', map_location='cpu'))
 
 #loss function and optimizer
 def loss_function(recon_x, x, mu, logvar) -> Variable:
@@ -220,6 +222,7 @@ class CustomDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
+#######issues with calculation here
     def __getitem__(self, idx):
         temp = load_fmri(self.samples[idx]).get_data()
         max_weight = temp.max()
@@ -294,3 +297,4 @@ if __name__ == "__main__":
 
 #save model state
 torch.save(model.state_dict(), 'cnnvae.torch')
+
