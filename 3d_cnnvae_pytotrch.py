@@ -23,19 +23,23 @@ BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 50
 ZDIMS = 50
-CLASSES = 10 #this needs added to the model
+CLASSES = 10 #to be added
+LEARN_RATE = 1e-4
+STEP_SIZE = 1 #to be added
+GAMMA = 0.9 #to be added
+
 
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc','rois_cc200', 'func_mask'],
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], #'rois_cc200', 'func_mask'],
                         n_subjects=5)
 
 func = data.func_preproc #4D data
-target_func = data.rois_cc200
-func_mask = data.func_mask
+#target_func = data.rois_cc200
+#func_mask = data.func_mask
 
 # print basic information on the dataset
 print('First functional nifti image (4D) is at: %s' % #location of image
@@ -126,6 +130,7 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 ###add pooling
+### missing missing channel deminsion
 class CNNVAE(nn.Module):
     def __init__(self, image_channels=3, h_dim=1024, z_dim=ZDIMS, n_classes=CLASSES):
         super(CNNVAE, self).__init__()
@@ -202,7 +207,7 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
     KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD, BCE, KLD
 
-optimizer = optim.Adam(model.parameters(), lr=1e-3)
+optimizer = optim.Adam(model.parameters(), lr=LEARN_RATE)
 
 #custom dataset for loader 
 class CustomDataset(Dataset):    
@@ -233,7 +238,7 @@ test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=True, *
 def train(epoch):
     model.train()
     train_loss = 0
-    for batch_idx, (data, _) in enumerate(train_loader):
+    for idx, (data, _, _) in enumerate(train_loader):
         data = Variable(data)
         if CUDA:
             data = data.cuda()
@@ -243,10 +248,10 @@ def train(epoch):
         loss.backward()
         train_loss += loss.data
         optimizer.step()
-        if batch_idx % LOG_INTERVAL == 0:
+        if idx % LOG_INTERVAL == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
-                100. * batch_idx / len(train_loader),
+                epoch, idx * len(data), len(train_loader.dataset),
+                100. * idx / len(train_loader),
                 loss.data / len(data)))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
@@ -255,7 +260,7 @@ def train(epoch):
 def test(epoch):
     model.eval()
     test_loss = 0
-    for i, (data, _) in enumerate(test_loader):
+    for i, (data, _, _) in enumerate(test_loader):
         if CUDA:
             data = data.cuda()
         data = Variable(data, requires_grad=False)
@@ -269,22 +274,21 @@ def test(epoch):
             comparison = torch.cat([data[:n],
                                   recon_batch.view(BATCH_SIZE, 1, 28, 28)[:n]]) #edit this
             save_image(comparison.data.cpu(),
-                     '/home/lussier/fMRI_VQ_VAE/results/practice/reconstruction_' + str(epoch) + '.png', nrow=n)
+                     './results/reconstruction_' + str(epoch) + '.png', nrow=n)
         '''        
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
-
-###parameters need editing
-for epoch in range(1, EPOCHS + 1):
-    train(epoch)
-    test(epoch)    
-    sample = Variable(torch.randn(64, ZDIMS)) #edit parameters
     
-    with torch.no_grad():
-        sample = sample.cuda()   
-        sample = model.decode(sample).cpu()
-    save_image(sample.data.view(64, 1, 28, 28), #edit these parameters
-        '/home/lussier/fMRI_VQ_VAE/results/practice/sample_' + str(epoch) + '.png')
+###parameters need editing
+if __name__ == "__main__":
+    for epoch in range(1, EPOCHS + 1):
+        train(epoch)
+        test(epoch)
+#        with torch.no_grad():
+#            sample = Variable(torch.randn(64, ZDIMS)) ###edit parameters
+#            sample = model.decode(sample).cpu()
+#            save_image(sample.view(64, 1, 28, 28), ###edit parameters
+#                       'results/sample_' + str(epoch) + '.png')
 
 #save model state
 torch.save(model.state_dict(), 'cnnvae.torch')
