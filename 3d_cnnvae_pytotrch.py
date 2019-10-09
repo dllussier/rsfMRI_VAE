@@ -207,7 +207,8 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
     KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD, BCE, KLD
 
-optimizer = optim.Adam(model.parameters(), lr=LEARN_RATE)
+optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
+scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
 
 #custom dataset for loader 
 class CustomDataset(Dataset):    
@@ -282,6 +283,7 @@ def test(epoch):
 ###parameters need editing
 if __name__ == "__main__":
     for epoch in range(1, EPOCHS + 1):
+        scheduler.step()
         train(epoch)
         test(epoch)
 #        with torch.no_grad():
