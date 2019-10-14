@@ -98,7 +98,7 @@ for c in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
 
 files = glob(os.path.join(train_dir,"*.nii.gz"))    
 for f in files:  
-    if "PITT" in f:
+    if "Pitt" in f:
         shutil.move(f, pitt_dir)       
     if "Olin" in f: 
         shutil.move(f, olin_dir)            
@@ -139,18 +139,23 @@ for f in files:
     if "SBL" in f: 
         shutil.move(f, sbl_dir)
         
-for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
-          um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
-          leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
-          maxmun_dir,caltech_dir, sbl_dir]:
-    volumes_dir  = glob(os.path.join(s,'/volumes/'))
+for s in [pitt_dir,nyu_dir]: #olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
+         #um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
+         #leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
+         #maxmun_dir,caltech_dir, sbl_dir]:
+    volumes_dir  = os.path.join(s,'volumes/')
     func_files = glob(os.path.join(s,"*.nii.gz"))
     if not os.path.exists(volumes_dir):
         os.mkdir(volumes_dir)
+    print(volumes_dir)
     
     for idx in tqdm(range(len(func_files))):
         func_data = func_files[idx]
         sub_name = re.findall(r'_\d+',func_data)[0] #remove site from subject names but keep numbers 
+        #if len(sub_name) == 0:
+        #    break
+        #else:
+        #    sub_name=sub_name[0]
     
         #mask volumes
         epi_mask = masking.compute_epi_mask(func_files)
@@ -183,6 +188,8 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
             saving_name = os.path.join(volumes_dir,
                                        f'{sub_name}_volume{ii+1}.nii.gz')
             back_to_3D.to_filename(saving_name)
+        
+
     
 
 # load tensors directly into GPU memory
@@ -372,4 +379,3 @@ if __name__ == "__main__":
 
 #save model state
 #torch.save(model.state_dict(), 'cnnvae.torch')
-
