@@ -1,6 +1,7 @@
 import torch
 import os
 import re
+import shutil
 import pandas as pd
 import numpy as np
 import torch.utils.data
@@ -15,6 +16,7 @@ from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision.utils import save_image
 from torch.utils.data import DataLoader, Dataset
+from nilearn.image import resample_img
 from nilearn.input_data import NiftiMasker
 
 CUDA = True
@@ -35,7 +37,7 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=5)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=10)
 
 func = data.func_preproc #4D data
 
@@ -44,76 +46,144 @@ print('First functional nifti image (4D) is at: %s' % #location of image
       func[0])  
 print(data.keys())
 
-#fetching and processing list of names of files
-###to dos: assign site classification, remove site id from subject name
-#input_file = "/home/lussier/nilearn_data/ABIDE_pcp/Phenotypic_V1_0b_preprocessed1.csv"
-#f = pd.read_csv(input_file, header = 0,  sep=',')
-
-#f.to_csv("/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv")
-#df = pd.read_csv('/home/lussier/nilearn_data/ABIDE_pcp/metadata.csv', skipinitialspace=True, usecols = ['FILE_ID'])
-
-#generate list of filenames
-#names = df.FILE_ID.tolist()
-#n_files = len(names)
-    
-#mask data, extract volumes, save with no site id, convert to np array/torch tensors
-saving_dir  = './data/volumes/'
-if not os.path.exists(saving_dir):
-    os.mkdir(saving_dir)
-
-for idx in tqdm(range(len(func))):
-    func_data = func[idx]
-    sub_name = re.findall(r'_\d',func_data)[0] #edit to remove site names but keep numbers 
-
-    #mask volumes
-    epi_mask = masking.compute_epi_mask(func)
-    masker = NiftiMasker(mask_img=epi_mask) 
-    BOLD = masker.fit_transform(func_data) 
-    
-    #designate timepoints for volumes
-    timepoints = np.arange(start = 0, stop = 400, step = 2)[:BOLD.shape[0]]
-    df = pd.DataFrame()
-    df['timepoints'] = timepoints
-    
-    #extract individual volumes
-    trial_start = np.arange(start = 0, stop = timepoints.max(), step = 1)
-    interest_start = trial_start + 0
-    interest_stop = trial_start + 2
-    
-    temp = []
-    for time in timepoints:
-        if any([np.logical_and(interval[0] <= time,time <= interval[1]) for interval in zip(interest_start,interest_stop)]):
-            temp.append(1)
-        else:
-            temp.append(0)
-    df['volumes'] = temp
-    idx_picked = list(df[df['volumes'] == 1].index)
-    BOLD_picked = BOLD[idx_picked]
-
-    #save volumes as 3d samples    
-    for ii,sample in enumerate(BOLD_picked):
-        back_to_3D  = masker.inverse_transform(sample)
-        saving_name = os.path.join(saving_dir,
-                                   f'{sub_name}_volume{ii+1}.nii.gz')
-        back_to_3D.to_filename(saving_name)
+for f in func:
+    shutil.move(f, './data/')
 
 #randomize and split training and test data 
-volumes_dir = './data/volumes/' 
-train_dir = './data/volumes/train/'
-test_dir = './data/volumes/test/'
-for d in [train_dir,test_dir]:
-    if not os.path.exists(d):
-        os.mkdir(d)
+func_dir = './data/'
+train_dir = './data/train/'
+test_dir = './data/test/'
+for p in [train_dir,test_dir]:
+    if not os.path.exists(p):
+        os.mkdir(p)
 
-all_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
+all_files = glob(os.path.join(func_dir,"*.nii.gz"))
 
 train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
 
-for f in tqdm(train):
-    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
+for t in tqdm(train):
+    copyfile(t,os.path.join(train_dir,os.path.split(t)[1]))
     
-for f in tqdm(test):
-    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
+for t in tqdm(test):
+    copyfile(t,os.path.join(test_dir,os.path.split(t)[1]))
+
+
+#mask data, extract volumes, save with no site id, convert to np array/torch tensors
+pitt_dir = './data/train/pitt/'
+olin_dir = './data/train/olin/'
+ohsu_dir = './data/train/ohsu/'
+sdsu_dir = './data/train/sdsu/'
+trinity_dir = './data/train/trinity/'
+um_1_dir = './data/train/um_1/'
+um_2_dir = './data/train/um_2/'
+usm_dir = './data/train/usm/'
+yale_dir = './data/train/yale/'
+cmu_dir = './data/train/cmu/'
+leuven_1_dir = './data/train/leuven_1/'
+leuven_2_dir = './data/train/leuven_2/'
+kki_dir = './data/train/kki/'
+nyu_dir = './data/train/nyu/'
+stanford_dir = './data/train/stanford'
+ucla_1_dir = './data/train/ucla_1/'
+ucla_2_dir = './data/train/ucla_2/'
+maxmun_dir = './data/train/maxmun/'
+caltech_dir = './data/train/caltech/'
+sbl_dir = './data/train/sbl/'
+for c in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
+          um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
+          leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
+          maxmun_dir,caltech_dir, sbl_dir]:
+    if not os.path.exists(c):
+        os.mkdir(c)
+
+files = glob(os.path.join(train_dir,"*.nii.gz"))    
+for f in files:  
+    if "PITT" in f:
+        shutil.move(f, pitt_dir)       
+    if "Olin" in f: 
+        shutil.move(f, olin_dir)            
+    if "OHSU" in f: 
+        shutil.move(f, ohsu_dir)
+    if "SDSU" in f: 
+        shutil.move(f, sdsu_dir)
+    if "Trinity" in f: 
+        shutil.move(f, trinity_dir)
+    if "UM_1" in f: 
+        shutil.move(f, um_1_dir)
+    if "UM_2" in f: 
+        shutil.move(f, um_2_dir)    
+    if "USM" in f: 
+        shutil.move(f, usm_dir)
+    if "Yale" in f: 
+        shutil.move(f, yale_dir)
+    if "CMU" in f: 
+        shutil.move(f, cmu_dir)        
+    if "Leuven_1" in f: 
+        shutil.move(f, leuven_1_dir)
+    if "Leuven_2" in f: 
+        shutil.move(f, leuven_2_dir)
+    if "KKI" in f: 
+        shutil.move(f, kki_dir)
+    if "NYU" in f: 
+        shutil.move(f, nyu_dir)
+    if "Stanford" in f: 
+        shutil.move(f, stanford_dir) 
+    if "UCLA_1" in f: 
+        shutil.move(f, ucla_1_dir)
+    if "UCLA_2" in f: 
+        shutil.move(f, ucla_2_dir)
+    if "MaxMun" in f:
+        shutil.move(f, maxmun_dir)        
+    if "Caltech" in f: 
+        shutil.move(f, caltech_dir)
+    if "SBL" in f: 
+        shutil.move(f, sbl_dir)
+        
+for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
+          um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
+          leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
+          maxmun_dir,caltech_dir, sbl_dir]:
+    volumes_dir  = glob(os.path.join(s,'/volumes/'))
+    func_files = glob(os.path.join(s,"*.nii.gz"))
+    if not os.path.exists(volumes_dir):
+        os.mkdir(volumes_dir)
+    
+    for idx in tqdm(range(len(func_files))):
+        func_data = func_files[idx]
+        sub_name = re.findall(r'_\d+',func_data)[0] #remove site from subject names but keep numbers 
+    
+        #mask volumes
+        epi_mask = masking.compute_epi_mask(func_files)
+        masker = NiftiMasker(mask_img=epi_mask) 
+        BOLD = masker.fit_transform(func_data) 
+        
+        #designate timepoints for volumes
+        timepoints = np.arange(start = 0, stop = 400, step = 2)[:BOLD.shape[0]]
+        df = pd.DataFrame()
+        df['timepoints'] = timepoints
+        
+        #extract individual volumes
+        trial_start = np.arange(start = 0, stop = timepoints.max(), step = 1)
+        interest_start = trial_start + 0
+        interest_stop = trial_start + 1
+        
+        temp = []
+        for time in timepoints:
+            if any([np.logical_and(interval[0] <= time,time <= interval[1]) for interval in zip(interest_start,interest_stop)]):
+                temp.append(1)
+            else:
+                temp.append(0)
+        df['volumes'] = temp
+        idx_picked = list(df[df['volumes'] == 1].index)
+        BOLD_picked = BOLD[idx_picked]
+    
+        #save volumes as 3d samples    
+        for ii,sample in enumerate(BOLD_picked):
+            back_to_3D  = masker.inverse_transform(sample)
+            saving_name = os.path.join(volumes_dir,
+                                       f'{sub_name}_volume{ii+1}.nii.gz')
+            back_to_3D.to_filename(saving_name)
+    
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
@@ -128,9 +198,10 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 class CNNVAE(nn.Module):
-    def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS): #, n_classes=CLASSES):
+    def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
         super(CNNVAE, self).__init__()
-
+        
+        print("CNNCAE")
         #encoder cnn layers
         self.encoder = nn.Sequential(
             nn.Conv3d(image_channels, 16, kernel_size=(3,3,3), stride=2), 
@@ -138,12 +209,13 @@ class CNNVAE(nn.Module):
             nn.MaxPool3d(kernel_size=4, stride=2), #padding=0, dilation=1, return_indices=False, ceil_mode=False),
             nn.Conv3d(16, 32, kernel_size=(3,3,3), stride=(3,3,3)),
             nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=None),
+            nn.MaxPool3d(kernel_size=4, stride=2),
             nn.Conv3d(32, 32, kernel_size=(2,2,2), stride=(2,2,2)),
             nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=None),
+            nn.MaxPool3d(kernel_size=4, stride=2),
             Flatten()
         )
+        #nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros')
 
         self.fc1 = nn.Linear(h_dim, z_dim) #mu
         self.fc2 = nn.Linear(h_dim, z_dim) #logvar
@@ -152,13 +224,13 @@ class CNNVAE(nn.Module):
         #decoder cnn layers
         self.decoder = nn.Sequential(
             UnFlatten(),
-            nn.MaxUnpool3d(kernel_size=5, stride=None, padding=0),
+            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
             nn.ConvTranspose3d(h_dim, 32, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.MaxUnpool3d(kernel_size=5, stride=None, padding=0), ##check order of layers
+            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0), ##check order of layers
             nn.ConvTranspose3d(32, 16, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.MaxUnpool3d(kernel_size=5, stride=None, padding=0),
+            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
             nn.ConvTranspose3d(64, 32, kernel_size=6, stride=2),
             nn.Sigmoid(),
         )
@@ -171,27 +243,27 @@ class CNNVAE(nn.Module):
             return z
         else:
             return mu
-
+        print("reparameterize")
     def bottleneck(self, h: Variable) -> (Variable, Variable):
         mu, logvar = self.fc1(h), self.fc2(h)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
-        
+        print("bottleneck")
     def encode(self, x: Variable) -> (Variable, Variable):
         h = self.encoder(x)
         z, mu, logvar = self.bottleneck(h)
         return z, mu, logvar
-
+        print("encode")
     def decode(self, z: Variable) -> Variable:
         z = self.fc3(z)
         z = self.decoder(z)
         return z
-
+        print("decode")
     def forward(self, x: Variable) -> (Variable, Variable, Variable):
         z, mu, logvar = self.encode(x)
         z = self.decode(z)
         return z, mu, logvar
-
+        print("forward")
 model = CNNVAE()
 if CUDA:
     model.cuda()
@@ -211,20 +283,27 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = 
 #custom dataset for loader 
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
-        self.samples = []       
-        for item in glob(os.path.join(data_root,'*.nii.gz')):
-            self.samples.append(item)
+        self.samples = []
+        for site in os.path.join(data_root):            
+                site_folder = os.path.join(data_root, site)
+                
+                for item in glob(os.path.join(site_folder,'*.nii.gz')):
+                    self.samples.append((site, item))
+                        
+        print('data root: %s' % data_root)
             
     def __len__(self):
         return len(self.samples)
 
-#######issues here
+#######issues with calculation here?
     def __getitem__(self, idx):
+        print("weights")
         temp = load_fmri(self.samples[idx]).get_data()
         max_weight = temp.max()
         temp = temp / max_weight
         min_weight = np.abs(temp.min())
         temp = temp + min_weight
+        #np.seterr(divide='ignore', invalid='ignore') 
         return temp,max_weight,min_weight
 
 #load dataset
@@ -232,7 +311,7 @@ trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
 
 train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
-test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
+test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False, **kwargs)
 
 #train and test model
 def train(epoch):
@@ -292,5 +371,5 @@ if __name__ == "__main__":
 #                       'results/sample_' + str(epoch) + '.png')
 
 #save model state
-torch.save(model.state_dict(), 'cnnvae.torch')
+#torch.save(model.state_dict(), 'cnnvae.torch')
 
