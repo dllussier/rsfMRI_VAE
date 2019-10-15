@@ -311,9 +311,8 @@ class CustomDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
-#######issues with calculation here?
     def __getitem__(self, idx, labels):
-        print("weights")
+        print("load")
         load = load_fmri(self.samples[idx]).get_data()
         return load
    
