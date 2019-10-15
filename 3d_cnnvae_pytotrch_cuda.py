@@ -314,7 +314,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx, labels):
         print("load")
         load = load_fmri(self.samples[idx]).get_data()
-        return load
+        return load, labels
    
 #load dataset
 trainset = CustomDataset(train_dir)
