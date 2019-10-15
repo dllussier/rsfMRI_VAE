@@ -307,13 +307,14 @@ class CustomDataset(Dataset):
 #######issues with calculation here?
     def __getitem__(self, idx):
         print("weights")
-        temp = load_fmri(self.samples[idx]).get_data()
-        max_weight = temp.max()
-        temp = temp / max_weight
-        min_weight = np.abs(temp.min())
-        temp = temp + min_weight
+        return self.samples[idx]
+        #temp = load_fmri(self.samples[idx]).get_data()
+        #max_weight = temp.max()
+        #temp = temp / max_weight
+        #min_weight = np.abs(temp.min())
+        #temp = temp + min_weight
         #np.seterr(divide='ignore', invalid='ignore') 
-        return temp,max_weight,min_weight
+        #return temp,max_weight,min_weight
 
 #load dataset
 trainset = CustomDataset(train_dir)
