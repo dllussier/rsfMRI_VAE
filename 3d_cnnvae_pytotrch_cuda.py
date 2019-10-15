@@ -311,11 +311,24 @@ class CustomDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
-    def __getitem__(self, idx, labels):
+    def __getitem__(self, idx):
         print("load")
         load = load_fmri(self.samples[idx]).get_data()
-        return load, labels
-   
+        return load
+
+'''
+TypeError: Traceback (most recent call last):
+  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in _worker_loop
+    samples = collate_fn([dataset[i] for i in batch_indices])
+  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in <listcomp>
+    samples = collate_fn([dataset[i] for i in batch_indices])
+  File "<ipython-input-73-ff3386f42983>", line 19, in __getitem__
+    load = load_fmri(self.samples[idx]).get_data()
+  File "/home/lussier/.local/lib/python3.7/site-packages/nibabel/loadsave.py", line 40, in load
+    stat_result = os.stat(filename)
+TypeError: stat: path should be string, bytes, os.PathLike or integer, not tuple
+'''
+
 #load dataset
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
