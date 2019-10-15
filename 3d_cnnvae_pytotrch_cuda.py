@@ -36,7 +36,7 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['NYU'], n_subjects=5)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=50)
 
 func = data.func_preproc #4D data
 
@@ -140,10 +140,10 @@ for f in files:
         shutil.move(f, sbl_dir)
         
 #mask data, extract volumes, save with no site id, convert to np array/torch tensors
-for s in [pitt_dir,nyu_dir]: #olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
-         #um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
-         #leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
-         #maxmun_dir,caltech_dir, sbl_dir]:
+for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
+         um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
+         leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
+         maxmun_dir,caltech_dir, sbl_dir]:
     volumes_dir  = os.path.join(s,'volumes/')
     func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))
     if not os.path.exists(volumes_dir):
