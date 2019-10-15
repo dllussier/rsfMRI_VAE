@@ -25,7 +25,7 @@ BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 50
 ZDIMS = 50
-CLASSES = 10 #to be added
+CLASSES = 2#0 
 OPT_LEARN_RATE = 1e-4
 STEP_SIZE = 1 
 GAMMA = 0.9 
@@ -36,7 +36,7 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=10)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['NYU'], n_subjects=5)
 
 func = data.func_preproc #4D data
 
@@ -45,6 +45,7 @@ print('First functional nifti image (4D) is at: %s' % #location of image
       func[0])  
 print(data.keys())
 
+#move functional data to local data directory
 for f in func:
     shutil.move(f, './data/')
 
@@ -66,7 +67,8 @@ for t in tqdm(train):
 for t in tqdm(test):
     copyfile(t,os.path.join(test_dir,os.path.split(t)[1]))
 
-#move data into class folders
+#move data into respective site id class folders
+####need to do the same for test data
 pitt_dir = './data/train/pitt/'
 olin_dir = './data/train/olin/'
 ohsu_dir = './data/train/ohsu/'
@@ -190,9 +192,12 @@ for s in [pitt_dir,nyu_dir]: #olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
     
     for f in func_files:      
         os.remove(f)
+    
+    volume_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
+    for v in volume_files: 
+        shutil.move(v, s)
         
-    for v in saving_name: 
-        shutil.move(volumes_dir, s)
+        ####add volume folder deletion
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
@@ -289,33 +294,29 @@ def loss_function(recon_x, x, mu, logvar) -> Variable:
 optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
 
-#custom dataset for loader 
+#create customized dataset
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
         self.samples = []
-        for site in os.path.join(data_root):            
-                site_folder = os.path.join(data_root, site)
+
+        for labels in os.listdir(data_root):            
+                labels_folder = os.path.join(data_root, labels)
                 
-                for item in glob(os.path.join(site_folder,'*.nii.gz')):
-                    self.samples.append((site, item))
-                        
+                for item in glob(os.path.join(labels_folder,'*.nii.gz')):
+                    self.samples.append((labels, item))
+
         print('data root: %s' % data_root)
+        print('labels: %s' % labels)
             
     def __len__(self):
         return len(self.samples)
 
 #######issues with calculation here?
-    def __getitem__(self, idx):
+    def __getitem__(self, idx, labels):
         print("weights")
-        return self.samples[idx]
-        #temp = load_fmri(self.samples[idx]).get_data()
-        #max_weight = temp.max()
-        #temp = temp / max_weight
-        #min_weight = np.abs(temp.min())
-        #temp = temp + min_weight
-        #np.seterr(divide='ignore', invalid='ignore') 
-        #return temp,max_weight,min_weight
-
+        load = load_fmri(self.samples[idx]).get_data()
+        return load
+   
 #load dataset
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
@@ -381,4 +382,13 @@ if __name__ == "__main__":
 #                       'results/sample_' + str(epoch) + '.png')
 
 #save model state
-#torch.save(model.state_dict(), 'cnnvae.torch')
+torch.save(model.state_dict(), 'cnnvae.torch')
+
+'''
+TypeError: Traceback (most recent call last):
+  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in _worker_loop
+    samples = collate_fn([dataset[i] for i in batch_indices])
+  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in <listcomp>
+    samples = collate_fn([dataset[i] for i in batch_indices])
+TypeError: __getitem__() missing 1 required positional argument: 'labels'
+'''
