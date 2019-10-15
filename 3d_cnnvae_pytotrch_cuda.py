@@ -31,7 +31,6 @@ STEP_SIZE = 1
 GAMMA = 0.9 
 HDIM=1024
 
-
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
@@ -67,8 +66,7 @@ for t in tqdm(train):
 for t in tqdm(test):
     copyfile(t,os.path.join(test_dir,os.path.split(t)[1]))
 
-
-#mask data, extract volumes, save with no site id, convert to np array/torch tensors
+#move data into class folders
 pitt_dir = './data/train/pitt/'
 olin_dir = './data/train/olin/'
 ohsu_dir = './data/train/ohsu/'
@@ -139,12 +137,13 @@ for f in files:
     if "SBL" in f: 
         shutil.move(f, sbl_dir)
         
+#mask data, extract volumes, save with no site id, convert to np array/torch tensors
 for s in [pitt_dir,nyu_dir]: #olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
          #um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
          #leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
          #maxmun_dir,caltech_dir, sbl_dir]:
     volumes_dir  = os.path.join(s,'volumes/')
-    func_files = glob(os.path.join(s,"*.nii.gz"))
+    func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))
     if not os.path.exists(volumes_dir):
         os.mkdir(volumes_dir)
     print(volumes_dir)
@@ -188,9 +187,12 @@ for s in [pitt_dir,nyu_dir]: #olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
             saving_name = os.path.join(volumes_dir,
                                        f'{sub_name}_volume{ii+1}.nii.gz')
             back_to_3D.to_filename(saving_name)
-        
-
     
+    for f in func_files:      
+        os.remove(f)
+        
+    for v in saving_name: 
+        shutil.move(volumes_dir, s)
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
@@ -235,10 +237,10 @@ class CNNVAE(nn.Module):
             nn.ConvTranspose3d(h_dim, 32, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0), ##check order of layers
-            nn.ConvTranspose3d(32, 16, kernel_size=5, stride=2),
+            nn.ConvTranspose3d(32, 32, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose3d(64, 32, kernel_size=6, stride=2),
+            nn.ConvTranspose3d(32, 16, kernel_size=6, stride=2),
             nn.Sigmoid(),
         )
 
