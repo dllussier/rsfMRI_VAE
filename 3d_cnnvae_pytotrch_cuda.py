@@ -272,7 +272,7 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
     
     #delete empty volumes folder
     #os.rmdir(volumes_dir)
-    
+
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
@@ -289,7 +289,7 @@ class CNNVAE(nn.Module):
     def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
         super(CNNVAE, self).__init__()
         
-        print("CNNCAE")
+        print("CNNVAE")
         #encoder cnn layers
         self.encoder = nn.Sequential(
             nn.Conv3d(image_channels, 16, kernel_size=(3,3,3), stride=2), 
@@ -369,18 +369,19 @@ optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
 
 #create customized dataset
+
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
         self.samples = []
 
         for labels in os.listdir(data_root):            
                 labels_folder = os.path.join(data_root, labels)
-                
-                for item in glob(os.path.join(labels_folder,'*.nii.gz')):
-                    self.samples.append(labels, item)
+                self.samples.append(labels)
+
+                for name in glob(os.path.join(labels_folder,'*.nii.gz')):
+                    self.samples.append(name) 
 
         print('data root: %s' % data_root)
-        print('labels: %s' % labels)
             
     def __len__(self):
         return len(self.samples)
@@ -389,7 +390,49 @@ class CustomDataset(Dataset):
         print("load")
         load = load_fmri(self.samples[idx]).get_data()
         return load
-
+'''
+https://discuss.pytorch.org/t/how-to-load-nib-to-pytorch/40947
+import nibabel as nib#http://nipy.org/nibabel/gettingstarted.html
+class Dataloder_img(data.Dataset):
+    def __init__(self,data_root,site_dir,transforms):
+        self.data_root = data_root
+        self.site_dir = site_dir
+        self.transforms = transforms
+        self.files = os.listdir(self.data_root)
+        self.labels = os.listdir(self.site_dir)
+        print(self.files)
+    
+    def __len__(self):
+        return len(self.files)
+    
+    def __getitem__(self,idx):
+        img_name = self.files[idx]
+        label_name = self.labels[idx]
+        img = load_fmri(os.path.join(self.data_root,img_name)) #!Image.open(os.path.join(self.data_root,img_name))
+        #change to numpy
+        img = np.array(img.dataobj)
+        #change to PIL 
+        img = Image.fromarray(img.astype('uint8'), 'RGB')
+        
+        print(img.size)
+        
+        label = load_fmri(os.path.join(self.site_dir,label_name))#!Image.open(os.path.join(self.site_dir,label_name))
+        #change to numpy
+        label = np.array(label.dataobj)
+        #change to PIL 
+        label = Image.fromarray(label.astype('uint8'), 'RGB')
+        
+        print(label.size)
+        
+        if self.transforms:
+            img = self.transforms(img)
+            label = self.transforms(label)
+            return img,label
+        else:
+            return img, label
+full_dataset = Dataloder_img(' image ',' labels ',tfms.Compose([tfms.ToTensor()]))#
+'''
+ 
 #load dataset
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
@@ -401,7 +444,8 @@ test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False, 
 def train(epoch):
     model.train()
     train_loss = 0
-    for idx, (data, _, _) in enumerate(train_loader):
+    for idx, (data, _) in enumerate(train_loader):
+        print("starting training")
         data = Variable(data)
         if CUDA:
             data = data.cuda()
@@ -423,7 +467,7 @@ def train(epoch):
 def test(epoch):
     model.eval()
     test_loss = 0
-    for i, (data, _, _) in enumerate(test_loader):
+    for i, (data, _) in enumerate(test_loader):
         if CUDA:
             data = data.cuda()
         data = Variable(data, requires_grad=False)
