@@ -67,8 +67,7 @@ for t in tqdm(train):
 for t in tqdm(test):
     copyfile(t,os.path.join(test_dir,os.path.split(t)[1]))
 
-#move data into respective site id class folders
-####need to do the same for test data
+#move data into respective site id label folders
 pitt_dir = './data/train/pitt/'
 olin_dir = './data/train/olin/'
 ohsu_dir = './data/train/ohsu/'
@@ -89,15 +88,40 @@ ucla_2_dir = './data/train/ucla_2/'
 maxmun_dir = './data/train/maxmun/'
 caltech_dir = './data/train/caltech/'
 sbl_dir = './data/train/sbl/'
-for c in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
-          um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
-          leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
-          maxmun_dir,caltech_dir, sbl_dir]:
+pitt_test_dir = './data/test/pitt/'
+olin_test_dir = './data/test/olin/'
+ohsu_test_dir = './data/test/ohsu/'
+sdsu_test_dir = './data/test/sdsu/'
+trinity_test_dir = './data/test/trinity/'
+um_1_test_dir = './data/test/um_1/'
+um_2_test_dir = './data/test/um_2/'
+usm_test_dir = './data/test/usm/'
+yale_test_dir = './data/test/yale/'
+cmu_test_dir = './data/test/cmu/'
+leuven_1_test_dir = './data/test/leuven_1/'
+leuven_2_test_dir = './data/test/leuven_2/'
+kki_test_dir = './data/test/kki/'
+nyu_test_dir = './data/test/nyu/'
+stanford_test_dir = './data/test/stanford'
+ucla_1_test_dir = './data/test/ucla_1/'
+ucla_2_test_dir = './data/test/ucla_2/'
+maxmun_test_dir = './data/test/maxmun/'
+caltech_test_dir = './data/test/caltech/'
+sbl_test_dir = './data/test/sbl/'
+
+for c in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
+          usm_dir,yale_dir,cmu_dir,leuven_1_dir,leuven_2_dir,kki_dir,nyu_dir,
+          stanford_dir,ucla_1_dir,ucla_2_dir,maxmun_dir,caltech_dir,sbl_dir,
+          pitt_test_dir,olin_test_dir,ohsu_test_dir,sdsu_test_dir,
+          trinity_test_dir,um_1_test_dir,um_2_test_dir,usm_test_dir,
+          yale_test_dir,cmu_test_dir,leuven_1_test_dir,leuven_2_test_dir,
+          kki_test_dir,nyu_test_dir,stanford_test_dir,ucla_1_test_dir,
+          ucla_2_test_dir,maxmun_test_dir,caltech_test_dir, sbl_test_dir]:
     if not os.path.exists(c):
         os.mkdir(c)
 
-files = glob(os.path.join(train_dir,"*.nii.gz"))    
-for f in files:  
+train_files = glob(os.path.join(train_dir,"*.nii.gz"))    
+for f in train_files:  
     if "Pitt" in f:
         shutil.move(f, pitt_dir)       
     if "Olin" in f: 
@@ -138,12 +162,59 @@ for f in files:
         shutil.move(f, caltech_dir)
     if "SBL" in f: 
         shutil.move(f, sbl_dir)
+
+test_files = glob(os.path.join(test_dir,"*.nii.gz"))    
+for f in test_files:  
+    if "Pitt" in f:
+        shutil.move(f, pitt_test_dir)       
+    if "Olin" in f: 
+        shutil.move(f, olin_test_dir)            
+    if "OHSU" in f: 
+        shutil.move(f, ohsu_test_dir)
+    if "SDSU" in f: 
+        shutil.move(f, sdsu_test_dir)
+    if "Trinity" in f: 
+        shutil.move(f, trinity_test_dir)
+    if "UM_1" in f: 
+        shutil.move(f, um_1_test_dir)
+    if "UM_2" in f: 
+        shutil.move(f, um_2_test_dir)    
+    if "USM" in f: 
+        shutil.move(f, usm_test_dir)
+    if "Yale" in f: 
+        shutil.move(f, yale_test_dir)
+    if "CMU" in f: 
+        shutil.move(f, cmu_test_dir)        
+    if "Leuven_1" in f: 
+        shutil.move(f, leuven_1_test_dir)
+    if "Leuven_2" in f: 
+        shutil.move(f, leuven_2_test_dir)
+    if "KKI" in f: 
+        shutil.move(f, kki_test_dir)
+    if "NYU" in f: 
+        shutil.move(f, nyu_test_dir)
+    if "Stanford" in f: 
+        shutil.move(f, stanford_test_dir) 
+    if "UCLA_1" in f: 
+        shutil.move(f, ucla_1_test_dir)
+    if "UCLA_2" in f: 
+        shutil.move(f, ucla_2_test_dir)
+    if "MaxMun" in f:
+        shutil.move(f, maxmun_test_dir)        
+    if "Caltech" in f: 
+        shutil.move(f, caltech_test_dir)
+    if "SBL" in f: 
+        shutil.move(f, sbl_test_dir)
         
 #mask data, extract volumes, save with no site id, convert to np array/torch tensors
-for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
-         um_2_dir,usm_dir,yale_dir,cmu_dir,leuven_1_dir,
-         leuven_2_dir,kki_dir,nyu_dir,stanford_dir,ucla_1_dir,ucla_2_dir,
-         maxmun_dir,caltech_dir, sbl_dir]:
+for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
+          usm_dir,yale_dir,cmu_dir,leuven_1_dir,leuven_2_dir,kki_dir,nyu_dir,
+          stanford_dir,ucla_1_dir,ucla_2_dir,maxmun_dir,caltech_dir,sbl_dir,
+          pitt_test_dir,olin_test_dir,ohsu_test_dir,sdsu_test_dir,
+          trinity_test_dir,um_1_test_dir,um_2_test_dir,usm_test_dir,
+          yale_test_dir,cmu_test_dir,leuven_1_test_dir,leuven_2_test_dir,
+          kki_test_dir,nyu_test_dir,stanford_test_dir,ucla_1_test_dir,
+          ucla_2_test_dir,maxmun_test_dir,caltech_test_dir, sbl_test_dir]:
     volumes_dir  = os.path.join(s,'volumes/')
     func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))
     if not os.path.exists(volumes_dir):
@@ -190,15 +261,18 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,
                                        f'{sub_name}_volume{ii+1}.nii.gz')
             back_to_3D.to_filename(saving_name)
     
+    #remove original 4D files
     for f in func_files:      
         os.remove(f)
     
+    #move 3D nifti files to site label folder
     volume_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
     for v in volume_files: 
         shutil.move(v, s)
-        
-        ####add volume folder deletion
-
+    
+    #delete empty volumes folder
+    #os.rmdir(volumes_dir)
+    
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
@@ -303,7 +377,7 @@ class CustomDataset(Dataset):
                 labels_folder = os.path.join(data_root, labels)
                 
                 for item in glob(os.path.join(labels_folder,'*.nii.gz')):
-                    self.samples.append((labels, item))
+                    self.samples.append(labels, item)
 
         print('data root: %s' % data_root)
         print('labels: %s' % labels)
@@ -315,19 +389,6 @@ class CustomDataset(Dataset):
         print("load")
         load = load_fmri(self.samples[idx]).get_data()
         return load
-
-'''
-TypeError: Traceback (most recent call last):
-  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in _worker_loop
-    samples = collate_fn([dataset[i] for i in batch_indices])
-  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in <listcomp>
-    samples = collate_fn([dataset[i] for i in batch_indices])
-  File "<ipython-input-73-ff3386f42983>", line 19, in __getitem__
-    load = load_fmri(self.samples[idx]).get_data()
-  File "/home/lussier/.local/lib/python3.7/site-packages/nibabel/loadsave.py", line 40, in load
-    stat_result = os.stat(filename)
-TypeError: stat: path should be string, bytes, os.PathLike or integer, not tuple
-'''
 
 #load dataset
 trainset = CustomDataset(train_dir)
@@ -395,12 +456,3 @@ if __name__ == "__main__":
 
 #save model state
 torch.save(model.state_dict(), 'cnnvae.torch')
-
-'''
-TypeError: Traceback (most recent call last):
-  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in _worker_loop
-    samples = collate_fn([dataset[i] for i in batch_indices])
-  File "/home/lussier/.local/lib/python3.7/site-packages/torch/utils/data/_utils/worker.py", line 99, in <listcomp>
-    samples = collate_fn([dataset[i] for i in batch_indices])
-TypeError: __getitem__() missing 1 required positional argument: 'labels'
-'''
