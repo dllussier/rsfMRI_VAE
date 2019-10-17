@@ -292,13 +292,13 @@ class CNNVAE(nn.Module):
         print("CNNVAE")
         #encoder cnn layers
         self.encoder = nn.Sequential(
-            nn.Conv3d(image_channels, 16, kernel_size=(3,3,3), stride=2), 
+            nn.Conv3d(image_channels, 16, kernel_size=3, stride=2), 
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=4, stride=2), #padding=0, dilation=1, return_indices=False, ceil_mode=False),
-            nn.Conv3d(16, 32, kernel_size=(3,3,3), stride=(3,3,3)),
+            nn.Conv3d(16, 32, kernel_size=3, stride=3),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=4, stride=2),
-            nn.Conv3d(32, 32, kernel_size=(2,2,2), stride=(2,2,2)),
+            nn.Conv3d(32, 32, kernel_size=3, stride=3),
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=4, stride=2),
             Flatten()
@@ -387,9 +387,9 @@ class CustomDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        print("load")
+        labels,name=self.samples[idx]
         load = load_fmri(self.samples[idx]).get_data()
-        return load
+        return load, labels, name
 '''
 https://discuss.pytorch.org/t/how-to-load-nib-to-pytorch/40947
 import nibabel as nib#http://nipy.org/nibabel/gettingstarted.html
