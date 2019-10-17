@@ -374,12 +374,11 @@ class CustomDataset(Dataset):
     def __init__(self,data_root):
         self.samples = []
 
-        for labels in os.listdir(data_root):            
-                labels_folder = os.path.join(data_root, labels)
-                self.samples.append(labels)
+        for label in os.listdir(data_root):            
+                labels_folder = os.path.join(data_root, label)
 
                 for name in glob(os.path.join(labels_folder,'*.nii.gz')):
-                    self.samples.append(name) 
+                    self.samples.append((label,name)) 
 
         print('data root: %s' % data_root)
             
@@ -387,9 +386,11 @@ class CustomDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx):
-        labels,name=self.samples[idx]
-        load = load_fmri(self.samples[idx]).get_data()
-        return load, labels, name
+        label,name=self.samples[idx]
+        print('label is %s' % label)
+        print('name is %s' % name)
+        load = load_fmri(name).get_data()
+        return load, label
 '''
 https://discuss.pytorch.org/t/how-to-load-nib-to-pytorch/40947
 import nibabel as nib#http://nipy.org/nibabel/gettingstarted.html
