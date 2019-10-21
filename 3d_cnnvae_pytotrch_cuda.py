@@ -14,7 +14,6 @@ from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision.utils import save_image
 from torch.utils.data import DataLoader, Dataset
 from nilearn.image import resample_img
 from nilearn.input_data import NiftiMasker
@@ -25,7 +24,7 @@ BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 50
 ZDIMS = 50
-CLASSES = 2#0 
+CLASSES = 4#20 
 OPT_LEARN_RATE = 1e-4
 STEP_SIZE = 1 
 GAMMA = 0.9 
@@ -36,7 +35,7 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=50)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=5)
 
 func = data.func_preproc #4D data
 
@@ -228,13 +227,13 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
         #    break
         #else:
         #    sub_name=sub_name[0]
-    
+        
         #mask volumes
         epi_mask = masking.compute_epi_mask(func_files)
         masker = NiftiMasker(mask_img=epi_mask) 
         BOLD = masker.fit_transform(func_data) 
         
-        #designate timepoints for volumes
+        #de signate timepoints for volumes
         timepoints = np.arange(start = 0, stop = 400, step = 2)[:BOLD.shape[0]]
         df = pd.DataFrame()
         df['timepoints'] = timepoints
@@ -242,7 +241,7 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
         #extract individual volumes
         trial_start = np.arange(start = 0, stop = timepoints.max(), step = 1)
         interest_start = trial_start + 0
-        interest_stop = trial_start + 1
+        interest_stop = trial_start + 2
         
         temp = []
         for time in timepoints:
@@ -265,9 +264,17 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
     for f in func_files:      
         os.remove(f)
     
-    #move 3D nifti files to site label folder
+    #convert 3D nifti files to float32 and move to site label folder
     volume_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
     for v in volume_files: 
+        img = load_fmri(v)
+        img_data = img.get_data()
+        I32 = np.float32(img_data)
+        I64 = np.float64(I32)
+        flag = np.allclose(I64, img_data)
+        if flag == 'false':
+            print ('data lossed after converting to float32')
+            break
         shutil.move(v, s)
     
     #delete empty volumes folder
@@ -294,13 +301,13 @@ class CNNVAE(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv3d(image_channels, 16, kernel_size=3, stride=2), 
             nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=2), #padding=0, dilation=1, return_indices=False, ceil_mode=False),
+            nn.MaxPool3d(kernel_size=4, stride=2, padding=0), #dilation=1, return_indices=False, ceil_mode=False),
             nn.Conv3d(16, 32, kernel_size=3, stride=3),
             nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=2),
-            nn.Conv3d(32, 32, kernel_size=3, stride=3),
+            nn.MaxPool3d(kernel_size=4, stride=3, padding=0),
+            nn.Conv3d(32, 96, kernel_size=2, stride=3),
             nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=2),
+            nn.MaxPool3d(kernel_size=2, stride=2, padding=0),
             Flatten()
         )
         #nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros')
@@ -313,13 +320,15 @@ class CNNVAE(nn.Module):
         self.decoder = nn.Sequential(
             UnFlatten(),
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose3d(h_dim, 32, kernel_size=5, stride=2),
+            nn.ConvTranspose3d(h_dim, 96, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0), ##check order of layers
-            nn.ConvTranspose3d(32, 32, kernel_size=5, stride=2),
+            nn.ConvTranspose3d(96, 32, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose3d(32, 16, kernel_size=6, stride=2),
+            nn.ConvTranspose3d(32, 16, kernel_size=5, stride=2),
+            nn.ReLU(),
+            nn.ConvTranspose3d(16, image_channels, kernel_size=6, stride=2),
             nn.Sigmoid(),
         )
 
@@ -332,26 +341,31 @@ class CNNVAE(nn.Module):
         else:
             return mu
         print("reparameterize")
+        
     def bottleneck(self, h: Variable) -> (Variable, Variable):
         mu, logvar = self.fc1(h), self.fc2(h)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
         print("bottleneck")
+        
     def encode(self, x: Variable) -> (Variable, Variable):
         h = self.encoder(x)
         z, mu, logvar = self.bottleneck(h)
         return z, mu, logvar
         print("encode")
+        
     def decode(self, z: Variable) -> Variable:
         z = self.fc3(z)
         z = self.decoder(z)
         return z
         print("decode")
+        
     def forward(self, x: Variable) -> (Variable, Variable, Variable):
         z, mu, logvar = self.encode(x)
         z = self.decode(z)
         return z, mu, logvar
         print("forward")
+        
 model = CNNVAE()
 if CUDA:
     model.cuda()
