@@ -369,7 +369,6 @@ optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
 
 #create customized dataset
-
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
         self.samples = []
@@ -391,48 +390,6 @@ class CustomDataset(Dataset):
         print('name is %s' % name)
         load = load_fmri(name).get_data()
         return load, label
-'''
-https://discuss.pytorch.org/t/how-to-load-nib-to-pytorch/40947
-import nibabel as nib#http://nipy.org/nibabel/gettingstarted.html
-class Dataloder_img(data.Dataset):
-    def __init__(self,data_root,site_dir,transforms):
-        self.data_root = data_root
-        self.site_dir = site_dir
-        self.transforms = transforms
-        self.files = os.listdir(self.data_root)
-        self.labels = os.listdir(self.site_dir)
-        print(self.files)
-    
-    def __len__(self):
-        return len(self.files)
-    
-    def __getitem__(self,idx):
-        img_name = self.files[idx]
-        label_name = self.labels[idx]
-        img = load_fmri(os.path.join(self.data_root,img_name)) #!Image.open(os.path.join(self.data_root,img_name))
-        #change to numpy
-        img = np.array(img.dataobj)
-        #change to PIL 
-        img = Image.fromarray(img.astype('uint8'), 'RGB')
-        
-        print(img.size)
-        
-        label = load_fmri(os.path.join(self.site_dir,label_name))#!Image.open(os.path.join(self.site_dir,label_name))
-        #change to numpy
-        label = np.array(label.dataobj)
-        #change to PIL 
-        label = Image.fromarray(label.astype('uint8'), 'RGB')
-        
-        print(label.size)
-        
-        if self.transforms:
-            img = self.transforms(img)
-            label = self.transforms(label)
-            return img,label
-        else:
-            return img, label
-full_dataset = Dataloder_img(' image ',' labels ',tfms.Compose([tfms.ToTensor()]))#
-'''
  
 #load dataset
 trainset = CustomDataset(train_dir)
@@ -450,6 +407,7 @@ def train(epoch):
         data = Variable(data)
         if CUDA:
             data = data.cuda()
+        scheduler.step()
         optimizer.zero_grad()
         recon_batch, mu, logvar = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
@@ -490,7 +448,6 @@ def test(epoch):
 ###parameters need editing
 if __name__ == "__main__":
     for epoch in range(1, EPOCHS + 1):
-        scheduler.step()
         train(epoch)
         test(epoch)
 #        with torch.no_grad():
