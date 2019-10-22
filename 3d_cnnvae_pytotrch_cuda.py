@@ -292,14 +292,14 @@ class UnFlatten(nn.Module):
     def forward(self, input, size=HDIM):
         return input.view(input.size(0), size, 1, 1)
 
-class CNNVAE(nn.Module):
-    def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
-        super(CNNVAE, self).__init__()
+class VAE(nn.Module):
+    def __init__(self, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
+        super(VAE, self).__init__()
         
-        print("CNNVAE")
+        print("VAE")
         #encoder cnn layers
         self.encoder = nn.Sequential(
-            nn.Conv3d(image_channels, 16, kernel_size=3, stride=2), 
+            nn.Conv3d(3, 16, kernel_size=3, stride=2), 
             nn.ReLU(),
             nn.MaxPool3d(kernel_size=4, stride=2, padding=0), #dilation=1, return_indices=False, ceil_mode=False),
             nn.Conv3d(16, 32, kernel_size=3, stride=3),
@@ -322,42 +322,51 @@ class CNNVAE(nn.Module):
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
             nn.ConvTranspose3d(h_dim, 96, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0), ##check order of layers
+            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0), 
             nn.ConvTranspose3d(96, 32, kernel_size=5, stride=2),
             nn.ReLU(),
             nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
             nn.ConvTranspose3d(32, 16, kernel_size=5, stride=2),
             nn.ReLU(),
-            nn.ConvTranspose3d(16, image_channels, kernel_size=6, stride=2),
+            nn.ConvTranspose3d(16, 3, kernel_size=6, stride=2),
             nn.Sigmoid(),
         )
 
     def reparameterize(self, mu, logvar):
+        print("reparameterize") 
         std = logvar.mul(0.5).exp_()
         esp = torch.randn(*mu.size())
         z = mu + std * esp
         return z
-        print("reparameterize")
-        
+
     def bottleneck(self, h):
+        print("bottleneck") 
         mu, logvar = self.fc1(h), self.fc2(h)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
-        
-    def representation(self, x):
-        return self.bottleneck(self.encoder(x))[0]
-
-    def forward(self, x):
+    
+    def encode(self, x):
         h = self.encoder(x)
         z, mu, logvar = self.bottleneck(h)
-        z = self.fc3(z)
-        return self.decoder(z), mu, logvar
+        return z, mu, logvar
 
+    def decode(self, z):
+        z = self.fc3(z)
+        z = self.decoder(z)
+        return z
+    
+    def forward(self, x):
+        print("forward")
+        z, mu, logvar = self.encode(x)
+        z = self.decode(z)
+        return z, mu, logvar
         
-model = CNNVAE()
+#image_channels = fixed_x.size(1) 
+
+model = VAE()
 if CUDA:
     model.cuda()
-
+    
 #load previous state   
 #model.load_state_dict(torch.load('cnnvae.torch', map_location='cpu'))
 
@@ -392,7 +401,7 @@ class CustomDataset(Dataset):
         print('name is %s' % name)
         load = load_fmri(name).get_data()
         img = np.array(load)#.dataobj)
-        return load, img
+        return label, img
  
 #load dataset
 trainset = CustomDataset(train_dir)
@@ -407,7 +416,6 @@ def train(epoch):
     train_loss = 0
     for idx, (data, _) in enumerate(train_loader):
         print("starting training")
-        data = Variable(data)
         if CUDA:
             data = data.cuda()
         scheduler.step()
