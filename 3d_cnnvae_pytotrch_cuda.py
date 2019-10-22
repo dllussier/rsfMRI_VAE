@@ -24,7 +24,7 @@ BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 50
 ZDIMS = 50
-CLASSES = 4#20 
+CLASSES = 20 
 OPT_LEARN_RATE = 1e-4
 STEP_SIZE = 1 
 GAMMA = 0.9 
@@ -44,18 +44,18 @@ print('First functional nifti image (4D) is at: %s' % #location of image
       func[0])  
 print(data.keys())
 
-#move functional data to local data directory
-for f in func:
-    shutil.move(f, './data/')
-
-#randomize and split training and test data 
+#create needed directories
 func_dir = './data/'
 train_dir = './data/train/'
 test_dir = './data/test/'
-for p in [train_dir,test_dir]:
+for p in [func_dir,train_dir,test_dir]:
     if not os.path.exists(p):
         os.mkdir(p)
+#move functional data to local data directory
+for f in func:
+    shutil.move(f, func_dir)
 
+#randomize and split training and test data 
 all_files = glob(os.path.join(func_dir,"*.nii.gz"))
 
 train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
