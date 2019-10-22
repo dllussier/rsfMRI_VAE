@@ -289,7 +289,7 @@ class Flatten(nn.Module):
         return input.view(input.size(0), -1)
 
 class UnFlatten(nn.Module):
-    def forward(self, input, size=1024):
+    def forward(self, input, size=HDIM):
         return input.view(input.size(0), size, 1, 1)
 
 class CNNVAE(nn.Module):
@@ -332,39 +332,27 @@ class CNNVAE(nn.Module):
             nn.Sigmoid(),
         )
 
-    def reparameterize(self, mu: Variable, logvar: Variable) -> Variable:
-        if self.training:
-            std = logvar.mul(0.5).exp_()  # type: Variable
-            eps = Variable(std.data.new(std.size()).normal_())
-            z = eps.mul(std).add_(mu)
-            return z
-        else:
-            return mu
+    def reparameterize(self, mu, logvar):
+        std = logvar.mul(0.5).exp_()
+        esp = torch.randn(*mu.size())
+        z = mu + std * esp
+        return z
         print("reparameterize")
         
-    def bottleneck(self, h: Variable) -> (Variable, Variable):
+    def bottleneck(self, h):
         mu, logvar = self.fc1(h), self.fc2(h)
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
-        print("bottleneck")
         
-    def encode(self, x: Variable) -> (Variable, Variable):
+    def representation(self, x):
+        return self.bottleneck(self.encoder(x))[0]
+
+    def forward(self, x):
         h = self.encoder(x)
         z, mu, logvar = self.bottleneck(h)
-        return z, mu, logvar
-        print("encode")
-        
-    def decode(self, z: Variable) -> Variable:
         z = self.fc3(z)
-        z = self.decoder(z)
-        return z
-        print("decode")
-        
-    def forward(self, x: Variable) -> (Variable, Variable, Variable):
-        z, mu, logvar = self.encode(x)
-        z = self.decode(z)
-        return z, mu, logvar
-        print("forward")
+        return self.decoder(z), mu, logvar
+
         
 model = CNNVAE()
 if CUDA:
@@ -374,7 +362,7 @@ if CUDA:
 #model.load_state_dict(torch.load('cnnvae.torch', map_location='cpu'))
 
 #loss function and optimizer
-def loss_function(recon_x, x, mu, logvar) -> Variable:
+def loss_function(recon_x, x, mu, logvar):
     BCE = F.binary_cross_entropy(recon_x, x, size_average=False)
     KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD, BCE, KLD
@@ -403,7 +391,7 @@ class CustomDataset(Dataset):
         print('label is %s' % label)
         print('name is %s' % name)
         load = load_fmri(name).get_data()
-        img = np.array(load)
+        img = np.array(load)#.dataobj)
         return load, img
  
 #load dataset
@@ -446,17 +434,7 @@ def test(epoch):
             data = data.cuda()
         data = Variable(data, requires_grad=False)
         recon_batch, mu, logvar = model(data)
-        test_loss += loss_function(recon_batch, data, mu, logvar).data
-        '''
-        #this is to generate comparison images 
-        #needs editing
-        if i == 0:
-            n = min(data.size(0), 8)
-            comparison = torch.cat([data[:n],
-                                  recon_batch.view(BATCH_SIZE, 1, 28, 28)[:n]]) #edit this
-            save_image(comparison.data.cpu(),
-                     './results/reconstruction_' + str(epoch) + '.png', nrow=n)
-        '''        
+        test_loss += loss_function(recon_batch, data, mu, logvar).data     
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
     
@@ -468,7 +446,7 @@ if __name__ == "__main__":
 #        with torch.no_grad():
 #            sample = Variable(torch.randn(64, ZDIMS)) ###edit parameters
 #            sample = model.decode(sample).cpu()
-#            save_image(sample.view(64, 1, 28, 28), ###edit parameters
+#            save_image(sample.view(1, 61, 73, 61), ###edit parameters
 #                       'results/sample_' + str(epoch) + '.png')
 
 #save model state
