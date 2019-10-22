@@ -403,7 +403,7 @@ class CustomDataset(Dataset):
         print('label is %s' % label)
         print('name is %s' % name)
         load = load_fmri(name).get_data()
-        img = np.array(load.dataobj)
+        img = np.array(load)
         return load, img
  
 #load dataset
