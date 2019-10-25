@@ -102,8 +102,6 @@ for s in [train_dir,test_dir]:
         #compute covariance
         estimator.fit(time_series)
         
-        
-    
         #plot_matrices(estimator.covariance_, 'covariance')
         plotting.plot_matrix(estimator.covariance_, labels=labels,
                              figure=(9, 7), vmax=1, vmin=-1,
