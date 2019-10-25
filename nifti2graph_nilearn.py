@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import torch
 import os
 import re
@@ -7,25 +6,13 @@ import shutil
 import dgl
 import networkx as nx
 import matplotlib.pylab as plt
-import pandas as pd
 import numpy as np
-import torch.utils.data
 from nilearn import datasets
-from nilearn import image 
 from nilearn import plotting 
-from nilearn import decomposition
 from glob import glob
 from tqdm import tqdm
 from shutil import copyfile
-from nibabel import load as load_fmri
 from sklearn.model_selection import train_test_split
-from torch import nn, optim
-from torch.autograd import Variable
-from torch.nn import functional as F
-from torchvision import transforms
-from torch.utils.data import DataLoader, Dataset
-from nilearn.image import resample_img
-from nilearn.input_data import NiftiMasker
 from nilearn.input_data import NiftiMapsMasker
 from nilearn.regions import RegionExtractor
 from nilearn.connectome import ConnectivityMeasure
@@ -87,33 +74,36 @@ for t in tqdm(test):
 #designate mask
 masker = NiftiMapsMasker(maps_img=atlas_filename, standardize=True,
                          memory='nilearn_cache', verbose=5)
-
+correlation_measure = ConnectivityMeasure(kind='correlation')
 
 for s in [train_dir,test_dir]:
-    graphs_dir  = os.path.join(s,'graphs/')
-    func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))
-    if not os.path.exists(graphs_dir):
-        os.mkdir(graphs_dir)
-    print(graphs_dir)
-    
+    func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))    
     for idx in tqdm(range(len(func_files))):
         func_data = func_files[idx]
         sub_name = re.findall(r'_\d+',func_data)[0]
         
-        #extract timr series
+        #extract time series
         time_series = masker.fit_transform(func_data, confounds=None)
-
-        #create correlation matrices
-        correlation_measure = ConnectivityMeasure(kind='correlation')
-        correlation_matrix = correlation_measure.fit_transform(func_data)
-
-        #view matrices array shape and data
+        print(time_series.shape)
+        
+        #create correlation matrices and view shape
+        correlation_matrix = correlation_measure.fit_transform([time_series])
         print('Correlations are in an array of shape {0}'.format(correlation_matrix.shape))
         print(correlation_matrix)
-        #save correlation matrix as 
-        numpy.save(file, correlation_matrix, allow_pickle=True, fix_imports=True)
+
+        #save correlation matrix as numpy file
+        corr_save = os.path.join(s, f'{sub_name}_correlations')
+        np.save(corr_save, correlation_matrix, allow_pickle=True, fix_imports=True)
+
         #show connectivity matrix plot
         plot_matrices(correlation_matrix, 'correlation')
+        # Mask out the major diagonal
+        #np.fill_diagonal(correlation_matrix, 0)
+        #plotting.plot_matrix(correlation_matrix, labels=labels, colorbar=True,vmax=0.8, vmin=-0.8)
+        
+    #remove original 4D files
+    for f in func_files:      
+        os.remove(f)
 
 
 #draw connectome to networkx graph
