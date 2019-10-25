@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-import torch
+
 import os
 import re
 import shutil
 import dgl
 import networkx as nx
-import matplotlib.pylab as plt
 import numpy as np
 from nilearn import datasets
 from nilearn import plotting 
@@ -14,23 +13,8 @@ from tqdm import tqdm
 from shutil import copyfile
 from sklearn.model_selection import train_test_split
 from nilearn.input_data import NiftiMapsMasker
-from nilearn.regions import RegionExtractor
 from nilearn.connectome import ConnectivityMeasure
 from sklearn.covariance import GraphLassoCV
-
-
-def plot_matrices(matrices, matrix_kind):
-    n_matrices = len(matrices)
-    fig = plt.figure(figsize=(n_matrices * 4, 4))
-    for n_subject, matrix in enumerate(matrices):
-        plt.subplot(1, n_matrices, n_subject + 1)
-        matrix = matrix.copy()  # avoid side effects
-        np.fill_diagonal(matrix, 0)
-        vmax = np.max(np.abs(matrix))
-        title = '{0}, subject {1}'.format(matrix_kind, n_subject)
-        plotting.plot_matrix(matrix, vmin=-vmax, vmax=vmax, cmap='RdBu_r',
-                             title=title, figure=fig, colorbar=False)
-
 
 #import atlas
 atlas = datasets.fetch_atlas_msdl()
@@ -76,6 +60,8 @@ masker = NiftiMapsMasker(maps_img=atlas_filename, standardize=True,
                          memory='nilearn_cache', verbose=5)
 correlation_measure = ConnectivityMeasure(kind='correlation')
 
+coords = atlas.region_coords
+
 for s in [train_dir,test_dir]:
     func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))    
     for idx in tqdm(range(len(func_files))):
@@ -96,15 +82,19 @@ for s in [train_dir,test_dir]:
         np.save(corr_save, correlation_matrix, allow_pickle=True, fix_imports=True)
 
         #show connectivity matrix plot
-        plot_matrices(correlation_matrix, 'correlation')
-        # Mask out the major diagonal
-        #np.fill_diagonal(correlation_matrix, 0)
-        #plotting.plot_matrix(correlation_matrix, labels=labels, colorbar=True,vmax=0.8, vmin=-0.8)
+        #plot_matrices(correlation_matrix, 'correlation')
+        np.fill_diagonal(correlation_matrix, 0)
+        plotting.plot_matrix(correlation_matrix, labels=labels, 
+                             colorbar=True,vmax=0.8, vmin=-0.8)
         
+        #display corresponding graph keeping only 20% of edges with the highest value
+        plotting.plot_connectome(correlation_matrix, coords,
+                                 edge_threshold="80%", colorbar=True)
+        plotting.show()
+           
     #remove original 4D files
     for f in func_files:      
         os.remove(f)
-
 
 #draw connectome to networkx graph
 G = nx.MultiGraph()
