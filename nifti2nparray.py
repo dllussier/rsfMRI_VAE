@@ -97,7 +97,7 @@ for s in [train_dir,test_dir]:
 
         #save correlation matrix as numpy file
         corr_save = os.path.join(s, f'{sub_name}_correlations')
-        np.save(corr_save, correlation_matrix, allow_pickle=False, fix_imports=True)
+        np.save(corr_save, correlation_matrix, allow_pickle=True, fix_imports=True)
 
         #show connectivity matrix plot
         plot_matrices(correlation_matrix, 'correlation')
