@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 
+'''
+@author: d. lussier
+
+extracts timeseries correlations and saves as a numpy array file for later conversion to graph for vgae
+'''
+
 import os
 import re
 import shutil
@@ -66,7 +72,7 @@ def plot_matrices(matrices, matrix_kind):
         np.fill_diagonal(matrix, 0)
         vmax = np.max(np.abs(matrix))
         title = '{0}, subject {1}'.format(matrix_kind, n_subject)
-        plotting.plot_matrix(matrix, vmin=-vmax, vmax=vmax, cmap='RdBu_r',
+        plotting.plot_matrix(matrix, labels=labels, vmin=-vmax, vmax=vmax, cmap='RdBu_r',
                              title=title, figure=fig, colorbar=False)
 
 #common helper objects
@@ -115,18 +121,3 @@ for s in [train_dir,test_dir]:
     #remove original 4D files
     for f in func_files:      
         os.remove(f)
-
-#draw connectome to networkx graph
-G = nx.MultiGraph()
-a = correlation_matrix
-D = nx.to_networkx_graph(a, create_using=nx.MultiGraph)
-keys = G.add_edges_from(D.edges)
-
-#view networkx graph
-nx.draw(G, with_labels=True)
-
-#convert nx graph to dgl
-g_dgl = dgl.DGLGraph(G)
-
-#view dgl graph
-nx.draw(g_dgl.to_networkx(), with_labels=True)
