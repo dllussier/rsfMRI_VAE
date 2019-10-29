@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import dgl
+import torch
 import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
@@ -32,7 +33,7 @@ def plot_matrices(matrices, matrix_kind):
     for n_subject, matrix in enumerate(matrices):
         plt.subplot(1, n_matrices, n_subject + 1)
         matrix = matrix.copy()  # avoid side effects
-        np.fill_diagonal(matrix, 0)
+        #np.fill_diagonal(matrix, 0)
         vmax = np.max(np.abs(matrix))
         title = '{0}, subject {1}'.format(matrix_kind, n_subject)
         plotting.plot_matrix(matrix, labels=labels, vmin=-vmax, vmax=vmax, cmap='RdBu_r',
@@ -61,8 +62,8 @@ for s in [train_dir,test_dir]:
         print(b)
 
         #verify that the matrices have not changed
-        plot_matrices(a, 'original')
-        plot_matrices(b, 'reshaped')
+        #plot_matrices(a, 'original')
+        #plot_matrices(b, 'reshaped')
         
         #convert reshaped numpy array to networkx graph 
         D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
@@ -76,6 +77,10 @@ for s in [train_dir,test_dir]:
         nx.draw(G, with_labels=True)
         #plt.show()
         
+        #save graph as file for use by dataloader
+        array_save = os.path.join(s, f'{array_name}.gpickle')
+        nx.write_gpickle(G, array_save)   
+        
         #convert nx graph to dgl
         g_dgl = dgl.DGLGraph(G)
         
@@ -83,6 +88,3 @@ for s in [train_dir,test_dir]:
         plt.figure()
         nx.draw(g_dgl.to_networkx(), with_labels=True)
         #plt.show()
-        
-        #save graph as file for use by dataloader
-        ####torch.save
