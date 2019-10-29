@@ -95,7 +95,6 @@ for s in [train_dir,test_dir]:
         print('Correlations are in an array of shape {0}'.format(correlation_matrix.shape))
         print(correlation_matrix)
 
-
         #save correlation matrix as numpy file
         corr_save = os.path.join(s, f'{sub_name}_correlations')
         np.save(corr_save, correlation_matrix, allow_pickle=False, fix_imports=True)
