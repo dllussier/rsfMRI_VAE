@@ -33,29 +33,8 @@ cuda = torch.device('cuda')
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
-    
-#split training and test data
-matrices_dir = '../data/matrices/'
-train_dir = '../data/graphs/train/'
-test_dir = '../data/graphs/test/'
-for d in [train_dir,test_dir]:
-    if not os.path.exists(d):
-        os.mkdir(d)
 
-all_files = glob(os.path.join(matrices_dir,"*.nii.gz"))
-
-train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345)
-
-for f in tqdm(train):
-    copyfile(f,os.path.join(train_dir,f.split('/')[-1]))
-    
-for f in tqdm(test):
-    copyfile(f,os.path.join(test_dir,f.split('/')[-1]))
-
-trainset = datasets.ImageFolder(root='../data/train/')
-testset = datasets.ImageFolder(root='../data/test/')
-
-
+ 
 g = dgl.MultiGraph()
 graph, label = data[0]
 fig, ax = plt.subplots()
