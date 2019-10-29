@@ -53,10 +53,8 @@ class CustomDataset(Dataset):
         #load gpickle file and convert to dgl graph
         G=nx.read_gpickle(name)
         graph=dgl.DGLGraph(G)
-        gtensor=torch.tensor(label)
-        return gtensor, graph
-
-transform = transforms.Compose(transforms.ToTensor())
+        tlabel=torch.tensor(label)
+        return tlabel, graph
 
 #load data
 train_dir = './data/train/'
