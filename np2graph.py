@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 @author: lussier
 
@@ -52,7 +51,7 @@ for s in [train_dir,test_dir]:
         G = nx.MultiGraph()
 
         #load numpy array from saved .npy file
-        a = np.load('./data/train/_0050964_correlations.npy', allow_pickle=True)
+        a = np.load(array_data, allow_pickle=True)
         print('Saved correlations are in an array of shape {0}'.format(a.shape))
         print(a)
 
