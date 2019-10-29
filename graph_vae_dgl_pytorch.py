@@ -1,49 +1,72 @@
 #!/usr/bin/env python3
 
-import os
 import torch
+import os
 import dgl
-import numpy as np
-import networkx as nx
-
 import torch.utils.data
-import matplotlib.pyplot as plt
-import torch.optim as optim
+import networkx as nx
 import dgl.function as fn
-from shutil import copyfile
-
+import matplotlib.pyplot as plt
 from glob import glob
-from tqdm import tqdm
-from torch import nn
+from torch import nn, optim
 from torch.nn import functional as F
-from torchvision import datasets
+from torchvision import transforms
 from torchvision.utils import save_image
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 # changed configuration to this instead of argparse for easier interaction
 CUDA = True
 SEED = 1
-BATCH_SIZE = 32
+BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 20
 ZDIMS = 20
 
+#load dataloader instances directly into gpu memory
 cuda = torch.device('cuda')
-
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
-
- 
-g = dgl.MultiGraph()
-graph, label = data[0]
-fig, ax = plt.subplots()
-nx.draw(g.to_networkx(), ax=ax)
-ax.set_title('Class: {:d}'.format(label))
-plt.show()
-
-#load dataloader instances directly into gpu memory
+    
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
+
+#create customized dataset
+class CustomDataset(Dataset):    
+    def __init__(self,data_root):
+        self.samples = []
+
+        for label in os.listdir(data_root):            
+                labels_folder = os.path.join(data_root, label)
+
+                for name in glob(os.path.join(labels_folder,'*.gpickle')):
+                    self.samples.append((label,name)) 
+
+        print('data root: %s' % data_root)
+            
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        label,name=self.samples[idx]
+        print('label is %s' % label)
+        print('name is %s' % name)
+        #load gpickle file and convert to dgl graph
+        G=nx.read_gpickle(name)
+        graph=dgl.DGLGraph(G)
+        gtensor=torch.tensor(label)
+        return gtensor, graph
+
+transform = transforms.Compose(transforms.ToTensor())
+
+#load data
+train_dir = './data/train/'
+test_dir = './data/test/'
+
+trainset = CustomDataset(train_dir)
+testset = CustomDataset(test_dir)
+
+train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True,  **kwargs)
+test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False,  **kwargs)
 
 #sends message of node feature h
 def gcn_msg(edge):
@@ -51,7 +74,7 @@ def gcn_msg(edge):
     return {'m': msg}
 
 def reduce(node):
-    """Take an average over all neighbor node features hu and use it to
+    """Take an average over all neighbor node features 'h' and use it to
     overwrite the original node feature."""
     accum = torch.sum(node.mailbox['m'], 1) * node.data['norm']
     return {'h': accum}
@@ -78,7 +101,6 @@ class GCN(nn.Module):
         g.update_all(gcn_msg, reduce)
         g.apply_nodes(func=self.apply_mod)
         return g.ndata.pop('h')
-
 
 #vae using gcn
 class VAE(nn.Module):
@@ -115,23 +137,15 @@ class VAE(nn.Module):
         z = self.sampling(mu, log_var)
         return self.decoder(z), mu, log_var
 
-vae = VAE(g_dim=784, h_dim1= 512, h_dim2=256, z_dim=ZDIMS)   
+vae = VAE(g_dim=784, h_dim1= 512, h_dim2=256, z_dim=ZDIMS)   #edit parameters
 
 model = vae
 if CUDA:
     model.cuda()
 
-#load data
-
-trainset = read_dataset("../data/graphs/train/")
-testset = read_dataset("../data/graphs/test/")
-
-train_loader = DataLoader(trainset, batch_size=BATCH_SIZE, collate_fn=None, shuffle=True, **kwargs)
-test_loader = DataLoader(testset, batch_size=BATCH_SIZE, collate_fn=None, shuffle=True, **kwargs)
-
 #loss function
 def loss_function(recon_g, g, mu, log_var):
-    BCE = F.binary_cross_entropy(recon_g, g.view(-1, 784), reduction='sum')
+    BCE = F.binary_cross_entropy(recon_g, g.view(-1, 784), reduction='sum') #edit parameters
     KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return BCE + KLD
 
@@ -139,7 +153,7 @@ optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 #train and test
 def train(epoch):
-    vae.train()
+    model.train()
     train_loss = 0
     for batch_idx, (data, _) in enumerate(train_loader):
         data = data.to(cuda)
@@ -158,8 +172,8 @@ def train(epoch):
                 100. * batch_idx / len(train_loader), loss.item() / len(data)))
     print('====> Epoch: {} Average loss: {:.4f}'.format(epoch, train_loss / len(train_loader.dataset)))
 
-def test():
-    vae.eval()
+def test(epoch):
+    model.eval()
     test_loss= 0
     with torch.no_grad():
         for data, _ in test_loader:
@@ -174,8 +188,9 @@ def test():
 
 for epoch in range(1, EPOCHS):
     train(epoch)
-    test()
-
+    test(epoch)
+    
+'''
 def train(epoch):
     model.train()
     train_loss = 0
@@ -225,6 +240,6 @@ if __name__ == "__main__":
         with torch.no_grad():
             sample = sample.to(cuda)   
             sample = model.decode(sample).cpu()
-            save_image(sample.data.view(BATCH_SIZE, 2, 28, 28),
+            save_image(sample.data.view(BATCH_SIZE, 2, 28, 28), #edit parameters
                        '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
-
+'''
