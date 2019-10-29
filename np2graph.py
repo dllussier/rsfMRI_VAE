@@ -62,14 +62,14 @@ for s in [train_dir,test_dir]:
 
         #verify that the matrices have not changed
         plot_matrices(a, 'original')
-        plot_matrices(a, 'reshaped')
+        plot_matrices(b, 'reshaped')
         
         #convert reshaped numpy array to networkx graph 
         D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
         keys = G.add_edges_from(D.edges)
         
         #verify number of nodes is consistent with numpy shape
-        print('For %d the node count is {0}'.format(nx.number_of_nodes(G))) #% subject)
+        print('For the graph converted from %s the node count is {0}'.format(nx.number_of_nodes(G)) % array_data)
         
         #view networkx graph
         plt.figure()
