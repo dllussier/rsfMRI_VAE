@@ -3,8 +3,24 @@
 '''
 @author: d. lussier
 
-extracts timeseries correlations and saves as a numpy array file for later conversion to graph for vgae
+extracts timeseries correlations and saves as a numpy array file for later conversion to graph
 '''
+
+import os
+import re
+import shutil
+import dgl
+import networkx as nx
+import numpy as np
+import matplotlib.pyplot as plt
+from nilearn import datasets
+from nilearn import plotting 
+from glob import glob
+from tqdm import tqdm
+from shutil import copyfile
+from sklearn.model_selection import train_test_split
+from nilearn.input_data import NiftiMapsMasker
+from nilearn.connectome import ConnectivityMeasure
 
 #import atlas
 atlas = datasets.fetch_atlas_msdl()
@@ -58,11 +74,10 @@ def plot_matrices(matrices, matrix_kind):
         plotting.plot_matrix(matrix, labels=labels, vmin=-vmax, vmax=vmax, cmap='RdBu_r',
                              title=title, figure=fig, colorbar=False)
 
-#common helper objects
+#load common
 masker = NiftiMapsMasker(maps_img=atlas_filename, standardize=True,
                          memory='nilearn_cache', verbose=5)
 correlation_measure = ConnectivityMeasure(kind='correlation')
-estimator = GraphLassoCV()
 
 #generate graphs and save as numpy files for use in dataloader
 for s in [train_dir,test_dir]:
@@ -73,40 +88,22 @@ for s in [train_dir,test_dir]:
         
         #extract time series
         time_series = masker.fit_transform(func_data, confounds=None)
-        print(time_series.shape)
+        print('Time series in in the shape {0}'.format(time_series.shape))
         
         #create correlation matrices and view shape
         correlation_matrix = correlation_measure.fit_transform([time_series])
         print('Correlations are in an array of shape {0}'.format(correlation_matrix.shape))
         print(correlation_matrix)
-        
-        #reshape correlations matrix from nilearn stacked array to 2D numpy
-        corr_array = np.reshape(correlation_matrix, (39,39), order='C')
-        print('Correlations have been reshaped and are in an array of shape {0}'.format(corr_array.shape))
-        print(corr_array)
+
 
         #save correlation matrix as numpy file
         corr_save = os.path.join(s, f'{sub_name}_correlations')
-        np.save(corr_save, corr_array, allow_pickle=False, fix_imports=True)
-        print('Reshaped correlations for {sub_name} have been saved as npy file')
+        np.save(corr_save, correlation_matrix, allow_pickle=False, fix_imports=True)
 
-        #show connectivity matrix plots to verify that they are the same before and after reshaping
+        #show connectivity matrix plot
         plot_matrices(correlation_matrix, 'correlation')
-        plot_matrices(corr_array, 'reshaped correlation') 
-      
-        #compute covariance
-        estimator.fit(time_series)
         
-        #plot_matrices(estimator.covariance_, 'covariance')
-        plotting.plot_matrix(estimator.covariance_, labels=labels,
-                             figure=(9, 7), vmax=1, vmin=-1,
-                             title='Covariance')
+    #remove original 4D files; this step is optional
+    #for f in func_files:      
+    #    os.remove(f)
 
-        #display sparse inverse covariance
-        plotting.plot_matrix(-estimator.precision_, labels=labels,
-                             figure=(9, 7), vmax=1, vmin=-1,
-                             title='Sparse inverse covariance')
-        
-    #remove original 4D files
-    for f in func_files:      
-        os.remove(f)
