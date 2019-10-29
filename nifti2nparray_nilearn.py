@@ -6,23 +6,6 @@
 extracts timeseries correlations and saves as a numpy array file for later conversion to graph for vgae
 '''
 
-import os
-import re
-import shutil
-import dgl
-import networkx as nx
-import numpy as np
-import matplotlib.pyplot as plt
-from nilearn import datasets
-from nilearn import plotting 
-from glob import glob
-from tqdm import tqdm
-from shutil import copyfile
-from sklearn.model_selection import train_test_split
-from nilearn.input_data import NiftiMapsMasker
-from nilearn.connectome import ConnectivityMeasure
-from sklearn.covariance import GraphLassoCV
-
 #import atlas
 atlas = datasets.fetch_atlas_msdl()
 # Loading atlas image stored in 'maps'
@@ -80,7 +63,6 @@ masker = NiftiMapsMasker(maps_img=atlas_filename, standardize=True,
                          memory='nilearn_cache', verbose=5)
 correlation_measure = ConnectivityMeasure(kind='correlation')
 estimator = GraphLassoCV()
-coords = atlas.region_coords
 
 #generate graphs and save as numpy files for use in dataloader
 for s in [train_dir,test_dir]:
@@ -97,14 +79,21 @@ for s in [train_dir,test_dir]:
         correlation_matrix = correlation_measure.fit_transform([time_series])
         print('Correlations are in an array of shape {0}'.format(correlation_matrix.shape))
         print(correlation_matrix)
+        
+        #reshape correlations matrix from nilearn stacked array to 2D numpy
+        corr_array = np.reshape(correlation_matrix, (39,39), order='C')
+        print('Correlations have been reshaped and are in an array of shape {0}'.format(corr_array.shape))
+        print(corr_array)
 
         #save correlation matrix as numpy file
         corr_save = os.path.join(s, f'{sub_name}_correlations')
-        np.save(corr_save, correlation_matrix, allow_pickle=True, fix_imports=True)
+        np.save(corr_save, corr_array, allow_pickle=False, fix_imports=True)
+        print('Reshaped correlations for {sub_name} have been saved as npy file')
 
-        #show connectivity matrix plot
+        #show connectivity matrix plots to verify that they are the same before and after reshaping
         plot_matrices(correlation_matrix, 'correlation')
-        
+        plot_matrices(corr_array, 'reshaped correlation') 
+      
         #compute covariance
         estimator.fit(time_series)
         
