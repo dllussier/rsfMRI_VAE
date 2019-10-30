@@ -184,9 +184,16 @@ def test(epoch):
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
-for epoch in range(1, EPOCHS):
-    train(epoch)
-    test(epoch)
+if __name__ == "__main__":
+    for epoch in range(1, EPOCHS + 1):
+        train(epoch)
+        test(epoch)
+        sample = torch.randn(BATCH_SIZE, ZDIMS)
+        with torch.no_grad():
+            sample = sample.to(cuda)   
+            sample = model.decode(sample).cpu()
+            #save_image(sample.data.view(BATCH_SIZE, 2, 28, 28), #edit parameters
+            #           '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
     
 '''
 def train(epoch):
@@ -228,16 +235,4 @@ def test(epoch):
           
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
-
-
-if __name__ == "__main__":
-    for epoch in range(1, EPOCHS + 1):
-        train(epoch)
-        test(epoch)
-        sample = torch.randn(BATCH_SIZE, ZDIMS)
-        with torch.no_grad():
-            sample = sample.to(cuda)   
-            sample = model.decode(sample).cpu()
-            save_image(sample.data.view(BATCH_SIZE, 2, 28, 28), #edit parameters
-                       '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
 '''
