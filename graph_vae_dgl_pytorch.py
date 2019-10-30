@@ -20,6 +20,10 @@ SEED = 1
 BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 20
+NSITES = 20 #number of sites
+GDIM = 784
+HDIM1 = 512
+HDIM2 = 256
 ZDIMS = 20
 
 #load dataloader instances directly into gpu memory
@@ -102,7 +106,7 @@ class GCN(nn.Module):
 
 #vae using gcn
 class VAE(nn.Module):
-    def __init__(self, g_dim, h_dim1, h_dim2, z_dim):
+    def __init__(self, g_dim, h_dim1, h_dim2, z_dim, n_classes):
         super(VAE, self).__init__()
         
         # encoder
@@ -135,7 +139,7 @@ class VAE(nn.Module):
         z = self.sampling(mu, log_var)
         return self.decoder(z), mu, log_var
 
-vae = VAE(g_dim=784, h_dim1= 512, h_dim2=256, z_dim=ZDIMS)   #edit parameters
+vae = VAE(g_dim=GDIM, h_dim1= HDIM1, h_dim2=HDIM2, z_dim=ZDIMS, n_classes=NSITES)
 
 model = vae
 if CUDA:
