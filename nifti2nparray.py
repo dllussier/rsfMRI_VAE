@@ -9,6 +9,7 @@ extracts timeseries correlations and saves as a numpy array file for later conve
 import os
 import re
 import shutil
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from nilearn import datasets
@@ -28,7 +29,45 @@ atlas_filename = atlas['maps']
 labels = atlas['labels']
 
 #import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=1400)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['PITT'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['OLIN'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['OHSU'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['SDSU'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UM_1'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UM_2'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['USM'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['YALE'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['CMU'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['LEUVEN_1'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['LEUVEN_2'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['KKI'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['NYU'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['STANFORD'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['TRINITY'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UCLA_1'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UCLA_2'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['MAX_MUN'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['CALTECH'], n_subjects=500)
+time.sleep(60)
+data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['SBL'], n_subjects=500)
 
 func = data.func_preproc #4D data
 
@@ -44,8 +83,11 @@ test_dir = './data/test/'
 for p in [func_dir,train_dir,test_dir]:
     if not os.path.exists(p):
         os.mkdir(p)
+        
 #move functional data to local data directory
-for f in func:
+dir_path = os.path.dirname(os.path.realpath(func[0]))
+func_files = glob(os.path.join(dir_path,"*func_preproc.nii.gz"))
+for f in func_files:
     shutil.move(f, func_dir)
 
 #randomize and split training and test data 
