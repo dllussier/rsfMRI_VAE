@@ -2,7 +2,7 @@
 
 '''
 @author: d. lussier
-downloads and organizes data by site into label folders
+downloads  resting-state fmri data, randomizes and splits into train and test sets, and organizes data by site into label folders
 extracts timeseries correlations and saves as a numpy array file for later conversion to graph
 '''
 
