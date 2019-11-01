@@ -19,12 +19,12 @@ CUDA = True
 SEED = 1
 BATCH_SIZE = 1
 LOG_INTERVAL = 10
-EPOCHS = 20
+EPOCHS = 100
 NSITES = 20 #number of sites
-GDIM = 784
-HDIM1 = 512
-HDIM2 = 256
-ZDIMS = 20
+GDIM = 1521
+HDIM1 = 1014
+HDIM2 = 507
+ZDIMS = 169
 
 #load dataloader instances directly into gpu memory
 cuda = torch.device('cuda')
