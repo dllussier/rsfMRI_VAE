@@ -28,7 +28,7 @@ atlas_filename = atlas['maps']
 # Loading atlas data stored in 'labels'
 labels = atlas['labels']
 
-#import dataset
+#import dataset in increments to avoid being disconnected from the server
 data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['PITT'], n_subjects=500)
 time.sleep(60)
 data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['OLIN'], n_subjects=500)
