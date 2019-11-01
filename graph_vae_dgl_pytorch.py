@@ -5,8 +5,6 @@ import os
 import dgl
 import torch.utils.data
 import networkx as nx
-import dgl.function as fn
-import matplotlib.pyplot as plt
 from glob import glob
 from torch import nn, optim
 from torch.nn import functional as F
@@ -38,7 +36,8 @@ kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
         self.samples = []
-
+        #self.transform = transforms.Compose([transforms.ToTensor()])
+        
         for label in os.listdir(data_root):            
                 labels_folder = os.path.join(data_root, label)
 
@@ -57,8 +56,10 @@ class CustomDataset(Dataset):
         #load gpickle file and convert to dgl graph
         G=nx.read_gpickle(name)
         graph=dgl.DGLGraph(G)
-        tlabel=torch.tensor(label)
-        return tlabel, graph
+#        target = self.to_tensor(label)
+#        transform=transforms.ToTensor()
+#        target=torch.tensor(target)
+        return label, graph
 
 #load data
 train_dir = './data/train/'
@@ -75,9 +76,8 @@ def gcn_msg(edge):
     msg = edge.src['h'] * edge.src['norm']
     return {'m': msg}
 
+#takes an average over all neighbor node features 'h' and overwrites the original node features
 def reduce(node):
-    """Take an average over all neighbor node features 'h' and use it to
-    overwrite the original node feature."""
     accum = torch.sum(node.mailbox['m'], 1) * node.data['norm']
     return {'h': accum}
 
@@ -139,15 +139,13 @@ class VAE(nn.Module):
         z = self.sampling(mu, log_var)
         return self.decoder(z), mu, log_var
 
-vae = VAE(g_dim=GDIM, h_dim1= HDIM1, h_dim2=HDIM2, z_dim=ZDIMS, n_classes=NSITES)
-
-model = vae
+model = VAE(g_dim=GDIM, h_dim1= HDIM1, h_dim2=HDIM2, z_dim=ZDIMS, n_classes=NSITES)
 if CUDA:
     model.cuda()
 
 #loss function
 def loss_function(recon_g, g, mu, log_var):
-    BCE = F.binary_cross_entropy(recon_g, g.view(-1, 784), reduction='sum') #edit parameters
+    BCE = F.binary_cross_entropy(recon_g, g.view(-1, 1521), reduction='sum')
     KLD = -0.5 * torch.sum(1 + log_var - mu.pow(2) - log_var.exp())
     return BCE + KLD
 
@@ -159,11 +157,9 @@ def train(epoch):
     train_loss = 0
     for batch_idx, (data, _) in enumerate(train_loader):
         data = data.to(cuda)
-        optimizer.zero_grad()
-        
-        recon_batch, mu, log_var = vae(data)
-        loss = loss_function(recon_batch, data, mu, log_var)
-        
+        optimizer.zero_grad()        
+        recon_batch, mu, log_var = model(data)
+        loss = loss_function(recon_batch, data, mu, log_var)        
         loss.backward()
         train_loss += loss.item()
         optimizer.step()
@@ -180,11 +176,8 @@ def test(epoch):
     with torch.no_grad():
         for data, _ in test_loader:
             data = data.to(cuda)
-            recon, mu, log_var = vae(data)
-            
-            # sum up batch loss
-            test_loss += loss_function(recon, data, mu, log_var).item()
-        
+            recon, mu, log_var = model(data)            
+            test_loss += loss_function(recon, data, mu, log_var).item()        
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
 
@@ -196,8 +189,8 @@ if __name__ == "__main__":
         with torch.no_grad():
             sample = sample.to(cuda)   
             sample = model.decode(sample).cpu()
-            #save_image(sample.data.view(BATCH_SIZE, 2, 28, 28), #edit parameters
-            #           '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
+            #save_image(sample.data.view(BATCH_SIZE, 2, 39, 39),
+#           '/home/lussier/fMRI_VQ_VAE/results/practice/dglsample_' + str(epoch) + '.png')
     
 '''
 def train(epoch):
@@ -233,7 +226,7 @@ def test(epoch):
             if i == 0:
                 n = min(data.size(0), 8)
                 comparison = torch.cat([data[:n],
-                                  recon_batch.view(BATCH_SIZE, 2, 28, 28)[:n]]) #edit these parameters
+                                  recon_batch.view(BATCH_SIZE, 2, 39, 39)[:n]])
                 save_image(comparison.data.cpu(),
                            '/home/lussier/fMRI_VQ_VAE/results/practice/dglreconstruction_' + str(epoch) + '.png', nrow=n)
           
