@@ -11,9 +11,7 @@ import re
 import shutil
 import time
 import numpy as np
-import matplotlib.pyplot as plt
 from nilearn import datasets
-from nilearn import plotting 
 from glob import glob
 from tqdm import tqdm
 from shutil import copyfile
@@ -240,20 +238,7 @@ for f in test_files:
     if "SBL" in f: 
         shutil.move(f, sbl_test_dir)
 
-#set up matrix plotting
-def plot_matrices(matrices, matrix_kind):
-    n_matrices = len(matrices)
-    fig = plt.figure(figsize=(n_matrices * 4, 4))
-    for n_subject, matrix in enumerate(matrices):
-        plt.subplot(1, n_matrices, n_subject + 1)
-        matrix = matrix.copy()  # avoid side effects
-        np.fill_diagonal(matrix, 0)
-        vmax = np.max(np.abs(matrix))
-        title = '{0}, subject {1}'.format(matrix_kind, n_subject)
-        plotting.plot_matrix(matrix, labels=labels, vmin=-vmax, vmax=vmax, cmap='RdBu_r',
-                             title=title, figure=fig, colorbar=False)
-
-#load common
+#define common
 masker = NiftiMapsMasker(maps_img=atlas_filename, standardize=True,
                          memory='nilearn_cache', verbose=5)
 correlation_measure = ConnectivityMeasure(kind='correlation')
@@ -270,7 +255,7 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
     func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))    
     for idx in tqdm(range(len(func_files))):
         func_data = func_files[idx]
-        sub_name = re.findall(r'_\d+',func_data)[0]
+        sub_name = re.findall(r'_005\d+',func_data)[0]
         
         #extract time series
         time_series = masker.fit_transform(func_data, confounds=None)
@@ -284,9 +269,6 @@ for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
         #save correlation matrix as numpy file
         corr_save = os.path.join(s, f'{sub_name}_correlations')
         np.save(corr_save, correlation_matrix, allow_pickle=True, fix_imports=True)
-
-        #show connectivity matrix plot
-        plot_matrices(correlation_matrix, 'correlation')
         
     #remove original 4D files; this step is optional
     #for f in func_files:      
