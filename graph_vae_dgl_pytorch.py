@@ -4,6 +4,7 @@ import torch
 import os
 import dgl
 import torch.utils.data
+import numpy as np
 import networkx as nx
 from glob import glob
 from torch import nn, optim
@@ -36,12 +37,11 @@ kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
         self.samples = []
-        #self.transform = transforms.Compose([transforms.ToTensor()])
         
         for label in os.listdir(data_root):            
                 labels_folder = os.path.join(data_root, label)
 
-                for name in glob(os.path.join(labels_folder,'*.gpickle')):
+                for name in glob(os.path.join(labels_folder,'*.npy')):
                     self.samples.append((label,name)) 
 
         print('data root: %s' % data_root)
@@ -53,23 +53,21 @@ class CustomDataset(Dataset):
         label,name=self.samples[idx]
         print('label is %s' % label)
         print('name is %s' % name)
-        #load gpickle file and convert to dgl graph
-        G=nx.read_gpickle(name)
-        graph=dgl.DGLGraph(G)
-#        target = self.to_tensor(label)
-#        transform=transforms.ToTensor()
-#        target=torch.tensor(target)
-        return label, graph
-
-#load data
-train_dir = './data/train/'
-test_dir = './data/test/'
-
-trainset = CustomDataset(train_dir)
-testset = CustomDataset(test_dir)
-
-train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True,  **kwargs)
-test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False,  **kwargs)
+        G = nx.MultiGraph()
+        a = np.load(name)
+        b = np.reshape(a, (39,39), order='C')        
+        D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
+        G.add_edges_from(D.edges) 
+        graph=dgl.DGLGraph()
+        graph.from_networkx(G)
+        return graph, label
+    
+#create custom collate funtion
+def collate(samples):
+    graphs, labels = map(list, zip(*samples))
+    batched_graph = dgl.batch(graphs)
+    labels=np.asarray(labels, dtype='float')
+    return batched_graph, torch.Tensor(labels)
 
 #sends message of node feature h
 def gcn_msg(edge):
@@ -150,6 +148,16 @@ def loss_function(recon_g, g, mu, log_var):
     return BCE + KLD
 
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
+
+#load data
+train_dir = './data/train/'
+test_dir = './data/test/'
+
+trainset = CustomDataset(train_dir)
+testset = CustomDataset(test_dir)
+
+train_loader = DataLoader(trainset, batch_size=BATCH_SIZE, shuffle=True, collate_fn=collate, **kwargs)
+test_loader = DataLoader(testset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate, **kwargs)
 
 #train and test
 def train(epoch):
