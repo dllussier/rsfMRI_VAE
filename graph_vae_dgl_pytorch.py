@@ -61,6 +61,7 @@ class CustomDataset(Dataset):
         b = np.reshape(a, (39,39), order='C')        
         #convert reshaped numpy array to networkx graph 
         D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
+        #G.add_nodes_from(D.nodes)
         G.add_edges_from(D.edges) 
         ##load gpickle file and convert to dgl graph
         ##G=nx.read_gpickle(name)
@@ -68,7 +69,7 @@ class CustomDataset(Dataset):
         graph=dgl.DGLGraph()
         graph.from_networkx(G)
         return graph, label
-
+    
 #create custom collate funtion
 def collate(samples):
     graphs, labels = map(list, zip(*samples))
@@ -103,11 +104,11 @@ class GCN(nn.Module):
         super(GCN, self).__init__()
         self.apply_mod = NodeApplyModule(in_feats, out_feats, activation)
 
-    def forward(self, g, feature):   
+    def forward(self, g, feature):
         g.ndata['h'] = feature  # Initialize the node features with h.
         g.update_all(gcn_msg, reduce)
         g.apply_nodes(func=self.apply_mod)
-        return g.ndata.pop('h')
+        return g.ndata.pop('h') #TypeError: forward() missing 1 required positional argument: 'feature'
 
 #vae using gcn
 class VAE(nn.Module):
@@ -247,4 +248,3 @@ def test(epoch):
           
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
-'''
