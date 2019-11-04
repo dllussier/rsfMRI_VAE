@@ -32,11 +32,11 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
     
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
-
 #create customized dataset
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
         self.samples = []
+        #self.transform = transforms.Compose([transforms.ToTensor()])
         
         for label in os.listdir(data_root):            
                 labels_folder = os.path.join(data_root, label)
@@ -54,14 +54,18 @@ class CustomDataset(Dataset):
         print('label is %s' % label)
         print('name is %s' % name)
         G = nx.MultiGraph()
+        #load numpy array from saved .npy file
         a = np.load(name)
+        #reshape stacked numpy array to 2d 
         b = np.reshape(a, (39,39), order='C')        
+        #convert reshaped numpy array to networkx graph 
         D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
         G.add_edges_from(D.edges) 
+        #convert netowrkx graph to dgl graph
         graph=dgl.DGLGraph()
         graph.from_networkx(G)
         return graph, label
-    
+
 #create custom collate funtion
 def collate(samples):
     graphs, labels = map(list, zip(*samples))
