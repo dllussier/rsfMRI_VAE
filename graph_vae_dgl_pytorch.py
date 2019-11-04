@@ -32,6 +32,7 @@ if CUDA:
     torch.cuda.manual_seed(SEED)
     
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
+
 #create customized dataset
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
@@ -61,6 +62,8 @@ class CustomDataset(Dataset):
         #convert reshaped numpy array to networkx graph 
         D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
         G.add_edges_from(D.edges) 
+        ##load gpickle file and convert to dgl graph
+        ##G=nx.read_gpickle(name)
         #convert netowrkx graph to dgl graph
         graph=dgl.DGLGraph()
         graph.from_networkx(G)
