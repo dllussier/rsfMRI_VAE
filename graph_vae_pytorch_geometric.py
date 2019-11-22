@@ -39,8 +39,9 @@ parser.add_argument('--model', type=str, default='VGAE')
 args = parser.parse_args()
 assert args.model in ['VGAE']
    
-kwargs = {'num_workers': 1, 'pin_memory': True, 'VGAE': VGAE} if CUDA else {}
+kwargs = {'num_workers': 1, 'pin_memory': True, 'VGAE': VGAE} if CUDA else {'VGAE': VGAE}
 
+'''
 #create customized dataset
 class CustomDataset(Dataset):    
     def __init__(self,data_root):
@@ -62,25 +63,15 @@ class CustomDataset(Dataset):
         label,name=self.samples[idx]
         print('label is %s' % label)
         print('name is %s' % name)
-        G = nx.MultiGraph()
-        #load numpy array from saved .npy file
-        a = np.load(name)
-        #reshape stacked numpy array to 2d 
-        b = np.reshape(a, (39,39), order='C')        
-        #convert reshaped numpy array to networkx graph 
-        D = nx.nx.convert.to_networkx_graph(b, create_using=nx.MultiGraph)
-        #G.add_nodes_from(D.nodes)
-        G.add_edges_from(D.edges) 
-        ##load gpickle file and convert to dgl graph
-        ##G=nx.read_gpickle(name)
-        graph=G
+        graph = np.load(name)
         return graph, label
+'''
     
 #create custom collate funtion
 def collate(samples):
     graphs, labels = map(list, zip(*samples))
     labels=np.asarray(labels, dtype='float')
-    graphs = torch.FloatTensor(torch.cat(graphs)) #.permute(0, 2, 1)
+    graphs = torch.FloatTensor(torch.cat(graphs))
     labels = torch.LongTensor(torch.cat(labels).squeeze())
     return graphs, labels
 
@@ -132,8 +123,8 @@ def loss_function(recon_g, g, mu, log_var):
 optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
 #load data
-train_dir = './data01/train/'
-test_dir = './data01/test/'
+train_dir = './data/train/'
+test_dir = './data/test/'
 
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
