@@ -20,52 +20,52 @@ from nilearn.input_data import NiftiMapsMasker
 from nilearn.connectome import ConnectivityMeasure
 
 #import atlas
-atlas = datasets.fetch_atlas_msdl()
+atlas = datasets.fetch_harvard_oxford()
 # Loading atlas image stored in 'maps'
 atlas_filename = atlas['maps']
 # Loading atlas data stored in 'labels'
 labels = atlas['labels']
 
 #import dataset in increments to avoid being disconnected from the server
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['PITT'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['PITT'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['OLIN'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['OLIN'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['OHSU'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['OHSU'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['SDSU'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['SDSU'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UM_1'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['UM_1'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UM_2'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['UM_2'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['USM'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['USM'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['YALE'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['YALE'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['CMU'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['CMU'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['LEUVEN_1'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['LEUVEN_1'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['LEUVEN_2'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['LEUVEN_2'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['KKI'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['KKI'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['NYU'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['NYU'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['STANFORD'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['STANFORD'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['TRINITY'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['TRINITY'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UCLA_1'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['UCLA_1'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['UCLA_2'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['UCLA_2'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['MAX_MUN'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['MAX_MUN'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['CALTECH'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['CALTECH'], n_subjects=500)
 time.sleep(60)
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], SITE_ID=['SBL'], n_subjects=500)
+data = datasets.fetch_abide_pcp(data_dir='./data/', pipeline='niak', derivatives=['func_preproc','rois_ho'], SITE_ID=['SBL'], n_subjects=500)
 
 func = data.func_preproc #4D data
 
@@ -75,18 +75,14 @@ print('First functional nifti image (4D) is at: %s' % #location of image
 print(data.keys())
 
 #create needed directories
-func_dir = './data/'
+func_dir = os.path.dirname(os.path.realpath(func[0]))
+phenotype = os.path.join(func_dir, '../../ABIDE_pcp/Phenotypic_V1_0b_preprocessed1.csv')
+
 train_dir = './data/train/'
 test_dir = './data/test/'
-for p in [func_dir,train_dir,test_dir]:
+for p in [train_dir,test_dir]:
     if not os.path.exists(p):
         os.mkdir(p)
-        
-#move functional data to local data directory
-dir_path = os.path.dirname(os.path.realpath(func[0]))
-func_files = glob(os.path.join(dir_path,"*func_preproc.nii.gz"))
-for f in func_files:
-    shutil.move(f, func_dir)
 
 #randomize and split training and test data 
 all_files = glob(os.path.join(func_dir,"*.nii.gz"))
