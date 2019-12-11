@@ -7,9 +7,9 @@ uses previously save .npy files to generate graphs that are saved for use by dat
 
 import os
 import re
+import scipy.io
 import networkx as nx
 import numpy as np
-from nilearn import datasets
 from glob import glob
 from tqdm import tqdm
 
