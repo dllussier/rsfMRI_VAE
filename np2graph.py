@@ -13,62 +13,36 @@ from nilearn import datasets
 from glob import glob
 from tqdm import tqdm
 
-#define site folders
-train_dir = './data/train/'
-test_dir = './data/test/'
-pitt_dir = './data/train/pitt/'
-olin_dir = './data/train/olin/'
-ohsu_dir = './data/train/ohsu/'
-sdsu_dir = './data/train/sdsu/'
-trinity_dir = './data/train/trinity/'
-um_1_dir = './data/train/um_1/'
-um_2_dir = './data/train/um_2/'
-usm_dir = './data/train/usm/'
-yale_dir = './data/train/yale/'
-cmu_dir = './data/train/cmu/'
-leuven_1_dir = './data/train/leuven_1/'
-leuven_2_dir = './data/train/leuven_2/'
-kki_dir = './data/train/kki/'
-nyu_dir = './data/train/nyu/'
-stanford_dir = './data/train/stanford'
-ucla_1_dir = './data/train/ucla_1/'
-ucla_2_dir = './data/train/ucla_2/'
-maxmun_dir = './data/train/maxmun/'
-caltech_dir = './data/train/caltech/'
-sbl_dir = './data/train/sbl/'
-pitt_test_dir = './data/test/pitt/'
-olin_test_dir = './data/test/olin/'
-ohsu_test_dir = './data/test/ohsu/'
-sdsu_test_dir = './data/test/sdsu/'
-trinity_test_dir = './data/test/trinity/'
-um_1_test_dir = './data/test/um_1/'
-um_2_test_dir = './data/test/um_2/'
-usm_test_dir = './data/test/usm/'
-yale_test_dir = './data/test/yale/'
-cmu_test_dir = './data/test/cmu/'
-leuven_1_test_dir = './data/test/leuven_1/'
-leuven_2_test_dir = './data/test/leuven_2/'
-kki_test_dir = './data/test/kki/'
-nyu_test_dir = './data/test/nyu/'
-stanford_test_dir = './data/test/stanford'
-ucla_1_test_dir = './data/test/ucla_1/'
-ucla_2_test_dir = './data/test/ucla_2/'
-maxmun_test_dir = './data/test/maxmun/'
-caltech_test_dir = './data/test/caltech/'
-sbl_test_dir = './data/test/sbl/'
+#define data folders containing connectomes
+connectome_dir = './output_abide_connectomes/'
+pitt_dir = os.path.join(connectome_dir, 'pitt')
+olin_dir = os.path.join(connectome_dir, 'olin')
+ohsu_dir = os.path.join(connectome_dir, 'ohsu')
+sdsu_dir = os.path.join(connectome_dir, 'sdsu')
+trinity_dir = os.path.join(connectome_dir, 'trinity')
+um_1_dir = os.path.join(connectome_dir, 'um_1')
+um_2_dir = os.path.join(connectome_dir, 'um_2')
+usm_dir = os.path.join(connectome_dir, 'usm')
+yale_dir = os.path.join(connectome_dir, 'yale')
+cmu_dir = os.path.join(connectome_dir, 'cmu')
+leuven_1_dir = os.path.join(connectome_dir, 'leuven_1')
+leuven_2_dir = os.path.join(connectome_dir, 'leuven_2')
+kki_dir = os.path.join(connectome_dir, 'kki')
+nyu_dir = os.path.join(connectome_dir, 'nyu')
+stanford_dir = os.path.join(connectome_dir, 'stanford')
+ucla_1_dir = os.path.join(connectome_dir, 'ucla_1')
+ucla_2_dir = os.path.join(connectome_dir, 'ucla_2')
+maxmun_dir = os.path.join(connectome_dir, 'maxmun')
+caltech_dir = os.path.join(connectome_dir, 'caltech')
+sbl_dir = os.path.join(connectome_dir, 'sbl')
 
 for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
           usm_dir,yale_dir,cmu_dir,leuven_1_dir,leuven_2_dir,kki_dir,nyu_dir,
-          stanford_dir,ucla_1_dir,ucla_2_dir,maxmun_dir,caltech_dir,sbl_dir,
-          pitt_test_dir,olin_test_dir,ohsu_test_dir,sdsu_test_dir,
-          trinity_test_dir,um_1_test_dir,um_2_test_dir,usm_test_dir,
-          yale_test_dir,cmu_test_dir,leuven_1_test_dir,leuven_2_test_dir,
-          kki_test_dir,nyu_test_dir,stanford_test_dir,ucla_1_test_dir,
-          ucla_2_test_dir,maxmun_test_dir,caltech_test_dir, sbl_test_dir]:
-    array_files = glob(os.path.join(s,"*_correlations.npy"))    
+          stanford_dir,ucla_1_dir,ucla_2_dir,maxmun_dir,caltech_dir,sbl_dir]:
+    array_files = glob(os.path.join(s,"*.mat"))    
     for idx in tqdm(range(len(array_files))):
         array_data = array_files[idx]
-        array_name = re.findall(r'_005\d+',array_data)[0]
+        array_name = re.findall(r'subject_\d+',array_data)[0]
 
         #draw connectome to networkx graph
         G = nx.MultiGraph()
