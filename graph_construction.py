@@ -14,7 +14,7 @@ from glob import glob
 from tqdm import tqdm
 
 #define data folders containing connectomes
-connectome_dir = './output_abide_connectomes/'
+connectome_dir = './output_abide_connectomes/graph_prop/'
 pitt_dir = os.path.join(connectome_dir, 'pitt')
 olin_dir = os.path.join(connectome_dir, 'olin')
 ohsu_dir = os.path.join(connectome_dir, 'ohsu')
