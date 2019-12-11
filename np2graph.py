@@ -13,13 +13,6 @@ from nilearn import datasets
 from glob import glob
 from tqdm import tqdm
 
-#import atlas
-atlas = datasets.fetch_atlas_msdl()
-# Loading atlas image stored in 'maps'
-atlas_filename = atlas['maps']
-# Loading atlas data stored in 'labels'
-labels = atlas['labels']
-
 #define site folders
 train_dir = './data/train/'
 test_dir = './data/test/'
