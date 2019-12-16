@@ -1,3 +1,11 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+
+@author: desiree lussier
+
+"""
+
 import torch
 import os
 import re
@@ -14,9 +22,8 @@ from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
+from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
-from nilearn.image import resample_img
-from nilearn.input_data import NiftiMasker
 
 CUDA = True
 SEED = 1
@@ -34,254 +41,45 @@ torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-#import dataset
-data = datasets.fetch_abide_pcp(derivatives=['func_preproc'], n_subjects=5)
-
-func = data.func_preproc #4D data
-
-# print basic information on the dataset
-print('First functional nifti image (4D) is at: %s' % #location of image
-      func[0])  
-print(data.keys())
-
-#create needed directories
-func_dir = './data/'
-train_dir = './data/train/'
-test_dir = './data/test/'
-for p in [func_dir,train_dir,test_dir]:
-    if not os.path.exists(p):
-        os.mkdir(p)
-#move functional data to local data directory
-for f in func:
-    shutil.move(f, func_dir)
-
-#randomize and split training and test data 
-all_files = glob(os.path.join(func_dir,"*.nii.gz"))
-
-train,test = train_test_split(all_files,test_size = 0.2,random_state = 12345, shuffle=True)
-
-for t in tqdm(train):
-    copyfile(t,os.path.join(train_dir,os.path.split(t)[1]))
-    
-for t in tqdm(test):
-    copyfile(t,os.path.join(test_dir,os.path.split(t)[1]))
-
-#move data into respective site id label folders
-pitt_dir = './data/train/pitt/'
-olin_dir = './data/train/olin/'
-ohsu_dir = './data/train/ohsu/'
-sdsu_dir = './data/train/sdsu/'
-trinity_dir = './data/train/trinity/'
-um_1_dir = './data/train/um_1/'
-um_2_dir = './data/train/um_2/'
-usm_dir = './data/train/usm/'
-yale_dir = './data/train/yale/'
-cmu_dir = './data/train/cmu/'
-leuven_1_dir = './data/train/leuven_1/'
-leuven_2_dir = './data/train/leuven_2/'
-kki_dir = './data/train/kki/'
-nyu_dir = './data/train/nyu/'
-stanford_dir = './data/train/stanford'
-ucla_1_dir = './data/train/ucla_1/'
-ucla_2_dir = './data/train/ucla_2/'
-maxmun_dir = './data/train/maxmun/'
-caltech_dir = './data/train/caltech/'
-sbl_dir = './data/train/sbl/'
-pitt_test_dir = './data/test/pitt/'
-olin_test_dir = './data/test/olin/'
-ohsu_test_dir = './data/test/ohsu/'
-sdsu_test_dir = './data/test/sdsu/'
-trinity_test_dir = './data/test/trinity/'
-um_1_test_dir = './data/test/um_1/'
-um_2_test_dir = './data/test/um_2/'
-usm_test_dir = './data/test/usm/'
-yale_test_dir = './data/test/yale/'
-cmu_test_dir = './data/test/cmu/'
-leuven_1_test_dir = './data/test/leuven_1/'
-leuven_2_test_dir = './data/test/leuven_2/'
-kki_test_dir = './data/test/kki/'
-nyu_test_dir = './data/test/nyu/'
-stanford_test_dir = './data/test/stanford'
-ucla_1_test_dir = './data/test/ucla_1/'
-ucla_2_test_dir = './data/test/ucla_2/'
-maxmun_test_dir = './data/test/maxmun/'
-caltech_test_dir = './data/test/caltech/'
-sbl_test_dir = './data/test/sbl/'
-
-for c in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
-          usm_dir,yale_dir,cmu_dir,leuven_1_dir,leuven_2_dir,kki_dir,nyu_dir,
-          stanford_dir,ucla_1_dir,ucla_2_dir,maxmun_dir,caltech_dir,sbl_dir,
-          pitt_test_dir,olin_test_dir,ohsu_test_dir,sdsu_test_dir,
-          trinity_test_dir,um_1_test_dir,um_2_test_dir,usm_test_dir,
-          yale_test_dir,cmu_test_dir,leuven_1_test_dir,leuven_2_test_dir,
-          kki_test_dir,nyu_test_dir,stanford_test_dir,ucla_1_test_dir,
-          ucla_2_test_dir,maxmun_test_dir,caltech_test_dir, sbl_test_dir]:
-    if not os.path.exists(c):
-        os.mkdir(c)
-
-train_files = glob(os.path.join(train_dir,"*.nii.gz"))    
-for f in train_files:  
-    if "Pitt" in f:
-        shutil.move(f, pitt_dir)       
-    if "Olin" in f: 
-        shutil.move(f, olin_dir)            
-    if "OHSU" in f: 
-        shutil.move(f, ohsu_dir)
-    if "SDSU" in f: 
-        shutil.move(f, sdsu_dir)
-    if "Trinity" in f: 
-        shutil.move(f, trinity_dir)
-    if "UM_1" in f: 
-        shutil.move(f, um_1_dir)
-    if "UM_2" in f: 
-        shutil.move(f, um_2_dir)    
-    if "USM" in f: 
-        shutil.move(f, usm_dir)
-    if "Yale" in f: 
-        shutil.move(f, yale_dir)
-    if "CMU" in f: 
-        shutil.move(f, cmu_dir)        
-    if "Leuven_1" in f: 
-        shutil.move(f, leuven_1_dir)
-    if "Leuven_2" in f: 
-        shutil.move(f, leuven_2_dir)
-    if "KKI" in f: 
-        shutil.move(f, kki_dir)
-    if "NYU" in f: 
-        shutil.move(f, nyu_dir)
-    if "Stanford" in f: 
-        shutil.move(f, stanford_dir) 
-    if "UCLA_1" in f: 
-        shutil.move(f, ucla_1_dir)
-    if "UCLA_2" in f: 
-        shutil.move(f, ucla_2_dir)
-    if "MaxMun" in f:
-        shutil.move(f, maxmun_dir)        
-    if "Caltech" in f: 
-        shutil.move(f, caltech_dir)
-    if "SBL" in f: 
-        shutil.move(f, sbl_dir)
-
-test_files = glob(os.path.join(test_dir,"*.nii.gz"))    
-for f in test_files:  
-    if "Pitt" in f:
-        shutil.move(f, pitt_test_dir)       
-    if "Olin" in f: 
-        shutil.move(f, olin_test_dir)            
-    if "OHSU" in f: 
-        shutil.move(f, ohsu_test_dir)
-    if "SDSU" in f: 
-        shutil.move(f, sdsu_test_dir)
-    if "Trinity" in f: 
-        shutil.move(f, trinity_test_dir)
-    if "UM_1" in f: 
-        shutil.move(f, um_1_test_dir)
-    if "UM_2" in f: 
-        shutil.move(f, um_2_test_dir)    
-    if "USM" in f: 
-        shutil.move(f, usm_test_dir)
-    if "Yale" in f: 
-        shutil.move(f, yale_test_dir)
-    if "CMU" in f: 
-        shutil.move(f, cmu_test_dir)        
-    if "Leuven_1" in f: 
-        shutil.move(f, leuven_1_test_dir)
-    if "Leuven_2" in f: 
-        shutil.move(f, leuven_2_test_dir)
-    if "KKI" in f: 
-        shutil.move(f, kki_test_dir)
-    if "NYU" in f: 
-        shutil.move(f, nyu_test_dir)
-    if "Stanford" in f: 
-        shutil.move(f, stanford_test_dir) 
-    if "UCLA_1" in f: 
-        shutil.move(f, ucla_1_test_dir)
-    if "UCLA_2" in f: 
-        shutil.move(f, ucla_2_test_dir)
-    if "MaxMun" in f:
-        shutil.move(f, maxmun_test_dir)        
-    if "Caltech" in f: 
-        shutil.move(f, caltech_test_dir)
-    if "SBL" in f: 
-        shutil.move(f, sbl_test_dir)
-        
-#mask data, extract volumes, save with no site id, convert to np array/torch tensors
-for s in [pitt_dir,olin_dir,ohsu_dir,sdsu_dir,trinity_dir,um_1_dir,um_2_dir,
-          usm_dir,yale_dir,cmu_dir,leuven_1_dir,leuven_2_dir,kki_dir,nyu_dir,
-          stanford_dir,ucla_1_dir,ucla_2_dir,maxmun_dir,caltech_dir,sbl_dir,
-          pitt_test_dir,olin_test_dir,ohsu_test_dir,sdsu_test_dir,
-          trinity_test_dir,um_1_test_dir,um_2_test_dir,usm_test_dir,
-          yale_test_dir,cmu_test_dir,leuven_1_test_dir,leuven_2_test_dir,
-          kki_test_dir,nyu_test_dir,stanford_test_dir,ucla_1_test_dir,
-          ucla_2_test_dir,maxmun_test_dir,caltech_test_dir, sbl_test_dir]:
-    volumes_dir  = os.path.join(s,'volumes/')
-    func_files = glob(os.path.join(s,"*_func_preproc.nii.gz"))
-    if not os.path.exists(volumes_dir):
-        os.mkdir(volumes_dir)
-    print(volumes_dir)
-    
-    for idx in tqdm(range(len(func_files))):
-        func_data = func_files[idx]
-        sub_name = re.findall(r'_\d+',func_data)[0] #remove site from subject names but keep numbers 
-        #if len(sub_name) == 0:
-        #    break
-        #else:
-        #    sub_name=sub_name[0]
-        
-        #mask volumes
-        epi_mask = masking.compute_epi_mask(func_files)
-        masker = NiftiMasker(mask_img=epi_mask) 
-        BOLD = masker.fit_transform(func_data) 
-        
-        #de signate timepoints for volumes
-        timepoints = np.arange(start = 0, stop = 400, step = 2)[:BOLD.shape[0]]
-        df = pd.DataFrame()
-        df['timepoints'] = timepoints
-        
-        #extract individual volumes
-        trial_start = np.arange(start = 0, stop = timepoints.max(), step = 1)
-        interest_start = trial_start + 0
-        interest_stop = trial_start + 2
-        
-        temp = []
-        for time in timepoints:
-            if any([np.logical_and(interval[0] <= time,time <= interval[1]) for interval in zip(interest_start,interest_stop)]):
-                temp.append(1)
-            else:
-                temp.append(0)
-        df['volumes'] = temp
-        idx_picked = list(df[df['volumes'] == 1].index)
-        BOLD_picked = BOLD[idx_picked]
-    
-        #save volumes as 3d samples    
-        for ii,sample in enumerate(BOLD_picked):
-            back_to_3D  = masker.inverse_transform(sample)
-            saving_name = os.path.join(volumes_dir,
-                                       f'{sub_name}_volume{ii+1}.nii.gz')
-            back_to_3D.to_filename(saving_name)
-    
-    #remove original 4D files
-    for f in func_files:      
-        os.remove(f)
-    
-    #convert 3D nifti files to float32 and move to site label folder
-    volume_files = glob(os.path.join(volumes_dir,"*.nii.gz"))
-    for v in volume_files: 
-        img = load_fmri(v)
-        img_data = img.get_data()
-        I32 = np.float32(img_data)
-        I64 = np.float64(I32)
-        flag = np.allclose(I64, img_data)
-        if flag == 'false':
-            print ('data lossed after converting to float32')
-            break
-        shutil.move(v, s)
-    
-    #delete empty volumes folder
-    #os.rmdir(volumes_dir)
 
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
+
+train_dir = "./train/"
+test_dir = "./test/"
+
+#create customized dataset
+class CustomDataset(Dataset):    
+    def __init__(self,data_root):
+        self.samples = []
+
+        for label in os.listdir(data_root):            
+                labels_folder = os.path.join(data_root, label)
+
+                for name in glob(os.path.join(labels_folder,'*.nii.gz')):
+                    self.samples.append((label,name)) 
+
+        print('data root: %s' % data_root)
+            
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        label,name=self.samples[idx]
+        print('label is %s' % label)
+        print('name is %s' % name)
+        load = load_fmri(name).get_data()
+        npimg = np.array(load)
+        transform=transforms.ToTensor() #TypeError: pic should be PIL Image
+        img=torch.tensor(transform(npimg))
+        return label, img
+ 
+#create custom collate funtion
+def collate(samples):
+    imgs, labels = map(list, zip(*samples))
+    labels=np.asarray(labels, dtype='float')
+    return imgs, torch.Tensor(labels)
+
 
 #define model
 class Flatten(nn.Module):
@@ -379,36 +177,12 @@ def loss_function(recon_x, x, mu, logvar):
 optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
 
-#create customized dataset
-class CustomDataset(Dataset):    
-    def __init__(self,data_root):
-        self.samples = []
-
-        for label in os.listdir(data_root):            
-                labels_folder = os.path.join(data_root, label)
-
-                for name in glob(os.path.join(labels_folder,'*.nii.gz')):
-                    self.samples.append((label,name)) 
-
-        print('data root: %s' % data_root)
-            
-    def __len__(self):
-        return len(self.samples)
-
-    def __getitem__(self, idx):
-        label,name=self.samples[idx]
-        print('label is %s' % label)
-        print('name is %s' % name)
-        load = load_fmri(name).get_data()
-        img = np.array(load)#.dataobj)
-        return label, img
- 
 #load dataset
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
 
-train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
-test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False, **kwargs)
+train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True,  **kwargs)
+test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=False,  **kwargs)
 
 #train and test model
 def train(epoch):
@@ -416,6 +190,7 @@ def train(epoch):
     train_loss = 0
     for idx, (data, _) in enumerate(train_loader):
         print("starting training")
+        data = Variable(data)
         if CUDA:
             data = data.cuda()
         scheduler.step()
@@ -434,6 +209,35 @@ def train(epoch):
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
 
+'''
+def train_loop(net,loss_fuc,optimizer,dataloader,device,stp,idx_epoch = 1,epsilon = 1e-12):
+    """
+    A for-loop of train the autoencoder for 1 epoch
+    """
+    train_loss      = 0.
+    for ii,(data,_) in enumerate(train_loader):
+        if ii + 1 <len(dataloader):
+            # load the data to memory
+            inputs  = Variable(data.unsqueeze(1)).to(device)
+            # one of the most important step, reset the gradients
+            optimizer.zero_grad()
+            # compute the outputs
+            outputs     = net(inputs)
+            # compute the losses
+            loss_batch  = loss_func(outputs.squeeze(1),inputs.squeeze(1),)
+            loss_batch += 0.001 * torch.norm(outputs,1) + epsilon # L1 prediction penalty
+            selected_params = torch.cat([x.view(-1) for x in net.parameters()]) # L2 penalty on parameters
+            loss_batch += 0.001 * (0.5 * torch.norm(selected_params,1) + 0.5 * torch.norm(selected_params,2) + epsilon)
+            # backpropagation
+            loss_batch.backward()
+            # modify the weights
+            optimizer.step()
+            # record the training loss of a mini-batch
+            train_loss  += loss_batch.data
+            print(f'epoch {idx_epoch+stp}-{ii + 1:3.0f}/{100*(ii+1)/ len(dataloader):2.3f}%,loss = {train_loss/(ii+1):.6f}')
+    return train_loss
+
+'''
 def test(epoch):
     model.eval()
     test_loss = 0
