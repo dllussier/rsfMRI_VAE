@@ -41,12 +41,11 @@ torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
-train_dir = "./train/"
-test_dir = "./test/"
+train_dir = "./data01/train01/"
+test_dir = "./data01/test01/"
 
 #create customized dataset
 class CustomDataset(Dataset):    
@@ -64,22 +63,33 @@ class CustomDataset(Dataset):
     def __len__(self):
         return len(self.samples)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx): 
         label,name=self.samples[idx]
         print('label is %s' % label)
         print('name is %s' % name)
         load = load_fmri(name).get_data()
-        npimg = np.array(load)
-        transform=transforms.ToTensor() #TypeError: pic should be PIL Image
-        img=torch.tensor(transform(npimg))
+        print('nifti loaded')
+        npimg = np.array(load)              
+        #npimg = np.float32(load)
+        print('converted to float')
+        npimg_fit=(npimg +1)*127.5
+        print('reshaped')
+        npimg_fit=npimg_fit.astype(np.uint8)
+        print('converted to unit8')
+        transform=transforms.Compose([
+                transforms.ToPILImage(),
+                transforms.ToTensor(),
+                ]) 
+        img=torch.tensor(transform(npimg_fit))
+        print('transformed')
         return label, img
- 
+
 #create custom collate funtion
-def collate(samples):
+def collate(samples):               #####ValueError: only one element tensors can be converted to Python scalars
     imgs, labels = map(list, zip(*samples))
     labels=np.asarray(labels, dtype='float')
-    return imgs, torch.Tensor(labels)
-
+    labels=torch.Tensor(labels)
+    return imgs, labels
 
 #define model
 class Flatten(nn.Module):
@@ -183,6 +193,9 @@ testset = CustomDataset(test_dir)
 
 train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True,  **kwargs)
 test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=False,  **kwargs)
+
+#train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True,  **kwargs)
+#test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False,  **kwargs)
 
 #train and test model
 def train(epoch):
