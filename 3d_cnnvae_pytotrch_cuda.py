@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-
 @author: desiree lussier
-
 """
 
 import torch
@@ -68,28 +66,16 @@ class CustomDataset(Dataset):
         print('label is %s' % label)
         print('name is %s' % name)
         load = load_fmri(name).get_data()
-        print('nifti loaded')
-        npimg = np.array(load)              
-        #npimg = np.float32(load)
-        print('converted to float')
+        npimg = np.array(load)
         npimg_fit=(npimg +1)*127.5
-        print('reshaped')
         npimg_fit=npimg_fit.astype(np.uint8)
-        print('converted to unit8')
         transform=transforms.Compose([
                 transforms.ToPILImage(),
                 transforms.ToTensor(),
                 ]) 
         img=torch.tensor(transform(npimg_fit))
-        print('transformed')
-        return label, img
-
-#create custom collate funtion
-def collate(samples):               #####ValueError: only one element tensors can be converted to Python scalars
-    imgs, labels = map(list, zip(*samples))
-    labels=np.asarray(labels, dtype='float')
-    labels=torch.Tensor(labels)
-    return imgs, labels
+        nplabel=np.asarray(label, dtype='float')
+        return img, nplabel 
 
 #define model
 class Flatten(nn.Module):
@@ -154,11 +140,13 @@ class VAE(nn.Module):
         return z, mu, logvar
     
     def encode(self, x):
+        print("encode") 
         h = self.encoder(x)
         z, mu, logvar = self.bottleneck(h)
         return z, mu, logvar
 
     def decode(self, z):
+        print("decode")
         z = self.fc3(z)
         z = self.decoder(z)
         return z
@@ -191,11 +179,8 @@ scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = 
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
 
-train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=True,  **kwargs)
-test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, collate_fn=collate, shuffle=False,  **kwargs)
-
-#train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True,  **kwargs)
-#test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False,  **kwargs)
+train_loader = DataLoader(dataset=trainset, batch_size=BATCH_SIZE, shuffle=True,  **kwargs)
+test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False,  **kwargs)
 
 #train and test model
 def train(epoch):
@@ -222,35 +207,6 @@ def train(epoch):
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
 
-'''
-def train_loop(net,loss_fuc,optimizer,dataloader,device,stp,idx_epoch = 1,epsilon = 1e-12):
-    """
-    A for-loop of train the autoencoder for 1 epoch
-    """
-    train_loss      = 0.
-    for ii,(data,_) in enumerate(train_loader):
-        if ii + 1 <len(dataloader):
-            # load the data to memory
-            inputs  = Variable(data.unsqueeze(1)).to(device)
-            # one of the most important step, reset the gradients
-            optimizer.zero_grad()
-            # compute the outputs
-            outputs     = net(inputs)
-            # compute the losses
-            loss_batch  = loss_func(outputs.squeeze(1),inputs.squeeze(1),)
-            loss_batch += 0.001 * torch.norm(outputs,1) + epsilon # L1 prediction penalty
-            selected_params = torch.cat([x.view(-1) for x in net.parameters()]) # L2 penalty on parameters
-            loss_batch += 0.001 * (0.5 * torch.norm(selected_params,1) + 0.5 * torch.norm(selected_params,2) + epsilon)
-            # backpropagation
-            loss_batch.backward()
-            # modify the weights
-            optimizer.step()
-            # record the training loss of a mini-batch
-            train_loss  += loss_batch.data
-            print(f'epoch {idx_epoch+stp}-{ii + 1:3.0f}/{100*(ii+1)/ len(dataloader):2.3f}%,loss = {train_loss/(ii+1):.6f}')
-    return train_loss
-
-'''
 def test(epoch):
     model.eval()
     test_loss = 0
