@@ -6,17 +6,10 @@
 
 import torch
 import os
-import re
-import shutil
-import pandas as pd
 import numpy as np
 import torch.utils.data
 from glob import glob
-from tqdm import tqdm
-from shutil import copyfile
-from nilearn import datasets, masking
 from nibabel import load as load_fmri
-from sklearn.model_selection import train_test_split
 from torch import nn, optim
 from torch.autograd import Variable
 from torch.nn import functional as F
