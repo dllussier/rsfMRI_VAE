@@ -23,8 +23,8 @@ CUDA = True
 SEED = 1
 BATCH_SIZE = 1
 LOG_INTERVAL = 10
-EPOCHS = 50
-ZDIMS = 50
+EPOCHS = 5
+ZDIMS = 24
 CLASSES = 7 
 OPT_LEARN_RATE = 1e-4
 STEP_SIZE = 1 
@@ -70,17 +70,18 @@ class CustomDataset(Dataset):
                 transforms.ToTensor(),
                 ]) 
         img=torch.tensor(transform(npimg_fit))
-        nplabel=np.asarray(label, dtype='float')
+        nplabel=np.asarray(label, dtype='int32')
+        print('nplabel is %s' % nplabel)
         return img, nplabel 
 
 #define model
 class Flatten(nn.Module):
     def forward(self, input):
-        return input.view(input.size(0), -1)
+        return input.view(input.size(0), -1) #x.view(x.size(0), 3*53*64*52)
 
 class UnFlatten(nn.Module):
     def forward(self, input, size=HDIM):
-        return input.view(input.size(0), size, 1, 1)
+        return input.view(input.size(0), size, 1, 1) #x.view(x.size(0), 3*53*64*52)
 
 class VAE(nn.Module):
     def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
@@ -89,7 +90,7 @@ class VAE(nn.Module):
         print("VAE")
         #encoder cnn layers
         self.encoder = nn.Sequential(
-            nn.Conv2d(image_channels, 16, kernel_size=1),# stride=(1, 1)), padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros')
+            nn.Conv2d(image_channels, 16, kernel_size=1),# stride=1, padding=0), dilation=1, groups=1, bias=True, padding_mode='zeros')
             nn.ReLU(),
             nn.MaxPool2d(kernel_size=2),# stride=2, padding=0), #dilation=1, return_indices=False, ceil_mode=False),
             nn.Conv2d(16, 32, kernel_size=2),# stride=3),
@@ -106,7 +107,7 @@ class VAE(nn.Module):
         
         self.fc1 = nn.Linear(h_dim, z_dim) #mu
         self.fc2 = nn.Linear(h_dim, z_dim) #logvar
-        #self.fc3 = nn.Linear(z_dim, h_dim)          
+        self.fc3 = nn.Linear(z_dim, h_dim)          
         
         #decoder cnn layers
         self.decoder = nn.Sequential(
@@ -120,23 +121,22 @@ class VAE(nn.Module):
             nn.MaxUnpool2d(kernel_size=5, stride=2, padding=0),
             nn.ConvTranspose2d(32, 16, kernel_size=5, stride=2),
             nn.ReLU(),
+            nn.MaxUnpool2d(kernel_size=5, stride=2, padding=0),
             nn.ConvTranspose2d(16, image_channels, kernel_size=6, stride=2),
             nn.Sigmoid(),
         )
-      
+   
     def reparameterize(self, mu, logvar):
         print("reparameterize") 
         std = logvar.mul(0.5).exp_()
         esp = torch.randn(*mu.size())
-        z = nn.Parameter(mu + std * esp)
+        z = mu + std * esp
         return z
 
     def bottleneck(self, h):
         print("bottleneck") 
         mu, logvar = self.fc1(h), self.fc2(h)
-        print("mu, logvar") 
         z = self.reparameterize(mu, logvar)
-        print("z") 
         return z, mu, logvar 
     
     def encode(self, x):
@@ -148,14 +148,15 @@ class VAE(nn.Module):
     def decode(self, z):
         print("decode")
         #z = self.fc3(z) 
-        z = self.decoder(z) 
+        #z = self.decoder(z) 
+        z = self.decoder(self.fc3(z)) 
         return z
     
     def forward(self, x):
         print("forward")
         z, mu, logvar = self.encode(x)
         z = self.decode(z)
-        return z, mu, logvar  
+        return z, mu, logvar 
    
 model = VAE()
 if CUDA:
