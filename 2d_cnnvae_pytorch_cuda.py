@@ -5,18 +5,19 @@
 
 takes 3d nifti images in labeled folders 
 """
-
-import torch
 import os
 import numpy as np
+import torch
 import torch.utils.data
-from glob import glob
-from nibabel import load as load_fmri
 from torch import nn, optim
+#workaroundfor RuntimeError: expected backend CUDA and dtype Float but got backend CPU and dtype Float
+torch.set_default_tensor_type(torch.cuda.FloatTensor)  
+from glob import glob
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
+from nibabel import load as load_fmri
 
 CUDA = True
 SEED = 1
@@ -127,7 +128,7 @@ class VAE(nn.Module):
         print("reparameterize") 
         std = logvar.mul(0.5).exp_()
         esp = torch.randn(*mu.size())
-        z = mu + std * esp         ####RuntimeError: expected backend CUDA and dtype Float but got backend CPU and dtype Float
+        z = mu + std * esp
         return z
 
     def bottleneck(self, h):
