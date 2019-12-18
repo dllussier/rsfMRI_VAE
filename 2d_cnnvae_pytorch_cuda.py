@@ -89,43 +89,32 @@ class VAE(nn.Module):
         
         print("VAE")
         #encoder cnn layers
-        self.encoder = nn.Sequential(
-            nn.Conv2d(image_channels, 16, kernel_size=1),# stride=1, padding=0), dilation=1, groups=1, bias=True, padding_mode='zeros')
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),# stride=2, padding=0), #dilation=1, return_indices=False, ceil_mode=False),
-            nn.Conv2d(16, 32, kernel_size=2),# stride=3),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),# stride=3, padding=0),
-            nn.Conv2d(32, 96, kernel_size=2),# stride=3),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),# stride=2, padding=0),
-            nn.Conv2d(96, 96, kernel_size=2),# stride=3),
-            nn.ReLU(),
-            nn.MaxPool2d(kernel_size=2),# stride=2, padding=0),
-            Flatten()
-        )
+        self.conv1 = nn.Conv2d(image_channels, 16, kernel_size=1, stride=1)
+        self.conv2 = nn.Conv2d(16, 32, kernel_size=2, stride=1)
+        self.conv3 = nn.Conv2d(32, 96, kernel_size=2, stride=1)
+        self.conv4 = nn.Conv2d(96, 96, kernel_size=2, stride=1)
+
+        self.pool = nn.MaxPool2d(kernel_size=2)#, return_indices=True)
+        self.pool_ind = nn.MaxPool2d(kernel_size=2, return_indices=True)
+        
+        self.flatten = Flatten()
         
         self.fc1 = nn.Linear(h_dim, z_dim) #mu
         self.fc2 = nn.Linear(h_dim, z_dim) #logvar
-        self.fc3 = nn.Linear(z_dim, h_dim)          
+        self.fc3 = nn.Linear(z_dim, h_dim)      
         
         #decoder cnn layers
-        self.decoder = nn.Sequential(
-            UnFlatten(),
-            nn.MaxUnpool2d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose2d(h_dim, 96, kernel_size=5, stride=2),
-            nn.ReLU(),
-            nn.MaxUnpool2d(kernel_size=5, stride=2, padding=0), 
-            nn.ConvTranspose2d(96, 32, kernel_size=5, stride=2),
-            nn.ReLU(),
-            nn.MaxUnpool2d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose2d(32, 16, kernel_size=5, stride=2),
-            nn.ReLU(),
-            nn.MaxUnpool2d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose2d(16, image_channels, kernel_size=6, stride=2),
-            nn.Sigmoid(),
-        )
-   
+        self.unflatten = UnFlatten()
+
+        self.unpool = nn.MaxUnpool2d(kernel_size=2)
+        
+        self.conv_tran1 = nn.ConvTranspose2d(h_dim, 96, kernel_size=4, stride=1)
+        self.conv_tran2 = nn.ConvTranspose2d(96, 32, kernel_size=4, stride=1)
+        self.conv_tran3 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=1)
+        self.conv_tran4 = nn.ConvTranspose2d(16, image_channels, kernel_size=5, stride=1)
+        
+        self.sigmoid = nn.Sigmoid()
+        
     def reparameterize(self, mu, logvar):
         print("reparameterize") 
         std = logvar.mul(0.5).exp_()
@@ -141,15 +130,43 @@ class VAE(nn.Module):
     
     def encode(self, x):
         print("encode") 
-        h = self.encoder(x)
+        #h = self.encoder(x)
+        h = F.relu(self.conv1(x))
+        print("conv1")
+        h = self.pool(h)
+        h = F.relu(self.conv2(h))
+        print("conv2")
+        h = self.pool(h)
+        h = F.relu(self.conv3(h))
+        print("conv3")
+        h = self.pool(h)
+        h = F.relu(self.conv4(h))
+        print("conv4")
+        h, indices4 = self.pool_ind(h)
+        h = self.flatten(h)
         z, mu, logvar = self.bottleneck(h)
-        return z, mu, logvar 
+        return z, mu, logvar
 
     def decode(self, z):
         print("decode")
-        #z = self.fc3(z) 
+        z = self.fc3(z) 
         #z = self.decoder(z) 
-        z = self.decoder(self.fc3(z)) 
+        z = self.unflatten(z)
+        z = self.unpool(z)
+        #unpool = self.unpool()
+        #z = unpool(z, indices4)
+        z = F.relu(self.conv_tran1(z))
+        print("conv1")
+        z = self.unpool(z)
+        z = F.relu(self.conv_tran2(z))
+        print("conv2")
+        z = self.unpool(z)
+        z = F.relu(self.conv_tran3(z))
+        print("conv3")
+        z = self.unpool(z)
+        z = F.relu(self.conv_tran4(z))
+        print("conv4")
+        z = self.sigmoid(z)
         return z
     
     def forward(self, x):
@@ -157,7 +174,7 @@ class VAE(nn.Module):
         z, mu, logvar = self.encode(x)
         z = self.decode(z)
         return z, mu, logvar 
-   
+ 
 model = VAE()
 if CUDA:
     model.cuda()
