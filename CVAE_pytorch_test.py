@@ -25,7 +25,7 @@ SEED = 1
 BATCH_SIZE = 1
 LOG_INTERVAL = 10
 EPOCHS = 5
-ZDIMS = 10176
+ZDIMS = 24
 CLASSES = 7 
 OPT_LEARN_RATE = 1e-4
 STEP_SIZE = 1 
@@ -78,18 +78,18 @@ class CustomDataset(Dataset):
 #define model
 class Flatten(nn.Module):
     def forward(self, input):
-        return input.view(input.size(0), -1) #x.view(x.size(0), 3*53*64*52)
+        return input.view(input.size(0), -1)
 
 class UnFlatten(nn.Module):
     def forward(self, input, size=HDIM):
-        return input.view(input.size(0), size, 1, 1) #x.view(x.size(0), 3*53*64*52)
+        return input.view(input.size(0), size, 1, 1)
 
-class Encoder(nn.Module):
+class VAE(nn.Module):
     def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
-        super(Encoder, self).__init__()
+        super(VAE, self).__init__()
         
-        print("encoder")
-        #encoder cnn layers
+        print("VAE")
+        #encoder layers
         self.conv1 = nn.Conv2d(image_channels, 16, kernel_size=1, stride=1)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=2, stride=1)
         self.conv3 = nn.Conv2d(32, 96, kernel_size=2, stride=1)
@@ -101,79 +101,69 @@ class Encoder(nn.Module):
         
         self.mu = nn.Linear(h_dim, z_dim)
         self.logvar = nn.Linear(h_dim, z_dim)
-    
-    def forward(self, x):
-        print("encode")
-        h = F.relu(self.conv1(x))
-        print("conv1")
-        h, indices1 = self.maxpool(h)
-        print("pool1")
-        h = F.relu(self.conv2(h))
-        print("conv2")
-        h, indices2 = self.maxpool(h)
-        print("pool2")        
-        h = F.relu(self.conv3(h))
-        print("conv3")
-        h, indices3 = self.maxpool(h)
-        print("pool3")
-        h = F.relu(self.conv4(h))
-        print("conv4")
-        h, indices4 = self.maxpool(h)
-        print("pool4")
-        h = self.flatten(h)
-        print("bottleneck") 
-        mu, logvar = self.mu(h), self.logvar(h)
-        print("reparameterize") 
-        std = logvar.mul(0.5).exp_()
-        esp = torch.randn(*mu.size())
-        z = mu + std * esp
-        return z, mu, logvar, indices1, indices2, indices3, indices4
-
-class Decoder(nn.Module):
-    def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
-        super(Decoder, self).__init__()
         
-        print("decoder")
-        #decoder cnn layers        
+        #decoder layers        
         self.latent = nn.Linear(z_dim, h_dim)  
         self.unflatten = UnFlatten()
 
         self.maxunpool = nn.MaxUnpool2d(kernel_size=2)
         
-        self.conv_tran1 = nn.ConvTranspose2d(h_dim, 96, kernel_size=4, stride=1)
-        self.conv_tran2 = nn.ConvTranspose2d(96, 32, kernel_size=4, stride=1)
-        self.conv_tran3 = nn.ConvTranspose2d(32, 16, kernel_size=4, stride=1)
-        self.conv_tran4 = nn.ConvTranspose2d(16, image_channels, kernel_size=5, stride=1)
+        self.conv_tran1 = nn.ConvTranspose2d(h_dim, 96, kernel_size=2, stride=1)
+        self.conv_tran2 = nn.ConvTranspose2d(96, 32, kernel_size=2, stride=1)
+        self.conv_tran3 = nn.ConvTranspose2d(32, 16, kernel_size=2, stride=1)
+        self.conv_tran4 = nn.ConvTranspose2d(16, image_channels, kernel_size=1, stride=1)
         
         self.sigmoid = nn.Sigmoid()
-    
-    def forward(self, z, indices1, indices2, indices3, indices4):
+        
+    def encode(self, x):
+        print("encode")
+        h = F.relu(self.conv1(x))
+        h, indices1 = self.maxpool(h)
+        h = F.relu(self.conv2(h))
+        h, indices2 = self.maxpool(h)
+        h = F.relu(self.conv3(h))
+        h, indices3 = self.maxpool(h)
+        h = F.relu(self.conv4(h))
+        h, indices4 = self.maxpool(h)
+        h = self.flatten(h)
+        mu, logvar = self.mu(h), self.logvar(h)
+        std = logvar.mul(0.5).exp_()
+        esp = torch.randn(*mu.size())
+        z = mu + std * esp
+        return z, mu, logvar, indices1, indices2, indices3, indices4
+
+    def decode(self, z, indices1, indices2, indices3, indices4):
         print("decode")
         z = self.latent(z)
+        print("latent")
         z = self.unflatten(z)
-        z = self.maxunpool(z, indices4)
-        print("unpool4")
+        print("unflatten")
         z = F.relu(self.conv_tran1(z))
         print("deconv4")
-        z = self.maxunpool(z, indices3)
-        print("unpool3")
+        z = self.maxunpool(z, indices4)
+        print("unpool4")
         z = F.relu(self.conv_tran2(z))
         print("deconv3")
-        z = self.maxunpool(z, indices2)
-        print("unpool2")
+        z = self.maxunpool(z, indices3)
+        print("unpool3")
         z = F.relu(self.conv_tran3(z))
         print("deconv2")
-        z = self.maxunpool(z, indices1)
-        print("unpool1")
+        z = self.maxunpool(z, indices2)
+        print("unpool2")
         z = F.relu(self.conv_tran4(z))
         print("deconv1")
+        z = self.maxunpool(z, indices1)
+        print("unpool1")
         z = self.sigmoid(z)
         return z
-#
-#encoder = Encoder()
-#decoder = Decoder() 
+    
+    def forward(self, x):
+        print("forward")
+        z, mu, logvar, indices1, indices2, indices3, indices4 = self.encode(x)
+        z = self.decode(z, indices1, indices2, indices3, indices4)
+        return z, mu, logvar, indices1, indices2, indices3, indices4  
 
-model = Encoder()
+model = VAE()
 if CUDA:
     model.cuda()
   
@@ -182,7 +172,7 @@ if CUDA:
 
 #loss function and optimizer
 def loss_function(recon_x, x, mu, logvar):
-    BCE = F.binary_cross_entropy(recon_x, x, size_average=False)
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
     KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD, BCE, KLD
 
@@ -233,28 +223,22 @@ def test(epoch):
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
     
-###parameters need editing
+
 if __name__ == "__main__":
     for epoch in range(1, EPOCHS + 1):
         train(epoch)
         test(epoch)
-#        with torch.no_grad():
-#            sample = Variable(torch.randn(64, ZDIMS)) ###edit parameters
-#            sample = model.decode(sample).cpu()
-#            save_image(sample.view(1, 61, 73, 61), ###edit parameters
-#                       'results/sample_' + str(epoch) + '.png')
+
 
 #save model state
 torch.save(model.state_dict(), 'cnnvae.torch')
 
-"""
-def save_reconstructed_images(data, epoch, outputs, save_path, name):
-    size = data.size()
-    n = min(data.size(0), 8)
-    batch_size = data.size(0)
-    comparison = torch.cat([data[:n],
-                            outputs.view(batch_size, size[1], size[2], size[3])[:n]])
-    save_image(comparison.cpu(),
-               os.path.join(save_path, name + '_' + str(epoch) + '.png'), nrow=n, normalize=True)
 
-"""
+#def save_reconstructed_images(data, epoch, outputs, save_path, name):
+#    size = data.size()
+#    n = min(data.size(0), 8)
+#    batch_size = data.size(0)
+#    comparison = torch.cat([data[:n],
+#                            outputs.view(batch_size, size[1], size[2], size[3])[:n]])
+#    save_image(comparison.cpu(),
+#               os.path.join(save_path, name + '_' + str(epoch) + '.png'), nrow=n, normalize=True)
