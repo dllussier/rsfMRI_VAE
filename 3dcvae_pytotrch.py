@@ -2,31 +2,34 @@
 # -*- coding: utf-8 -*-
 """
 @author: desiree lussier
+
+parameters and dataloader need editing to fit additional dimensions in data
 """
 
-import torch
 import os
 import numpy as np
+import torch
 import torch.utils.data
-from glob import glob
-from nibabel import load as load_fmri
 from torch import nn, optim
+torch.set_default_tensor_type(torch.cuda.FloatTensor)  #comment out for cpu
+from glob import glob
 from torch.autograd import Variable
 from torch.nn import functional as F
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
+from nibabel import load as load_fmri
 
-CUDA = True
+CUDA = True    #for cpu set to 'False'
 SEED = 1
 BATCH_SIZE = 1
 LOG_INTERVAL = 10
-EPOCHS = 50
-ZDIMS = 50
-CLASSES = 20 
+EPOCHS = 5
+ZDIMS = 24
+CLASSES = 7 
 OPT_LEARN_RATE = 1e-4
 STEP_SIZE = 1 
 GAMMA = 0.9 
-HDIM=1024
+HDIM=576
 
 torch.manual_seed(SEED)
 if CUDA:
@@ -35,8 +38,8 @@ if CUDA:
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
-train_dir = "./data01/train01/"
-test_dir = "./data01/test01/"
+train_dir = "./train/"
+test_dir = "./test/"
 
 #create customized dataset
 class CustomDataset(Dataset):    
@@ -59,7 +62,7 @@ class CustomDataset(Dataset):
         print('label is %s' % label)
         print('name is %s' % name)
         load = load_fmri(name).get_data()
-        npimg = np.array(load)
+        npimg = np.array(load, dtype='int32')
         npimg_fit=(npimg +1)*127.5
         npimg_fit=npimg_fit.astype(np.uint8)
         transform=transforms.Compose([
@@ -67,7 +70,8 @@ class CustomDataset(Dataset):
                 transforms.ToTensor(),
                 ]) 
         img=torch.tensor(transform(npimg_fit))
-        nplabel=np.asarray(label, dtype='float')
+        nplabel=np.asarray(label, dtype='int32')
+        print('nplabel is %s' % nplabel)
         return img, nplabel 
 
 #define model
@@ -80,90 +84,87 @@ class UnFlatten(nn.Module):
         return input.view(input.size(0), size, 1, 1)
 
 class VAE(nn.Module):
-    def __init__(self, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
+    def __init__(self, image_channels=3, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
         super(VAE, self).__init__()
         
         print("VAE")
-        #encoder cnn layers
-        self.encoder = nn.Sequential(
-            nn.Conv3d(3, 16, kernel_size=3, stride=2), 
-            nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=2, padding=0), #dilation=1, return_indices=False, ceil_mode=False),
-            nn.Conv3d(16, 32, kernel_size=3, stride=3),
-            nn.ReLU(),
-            nn.MaxPool3d(kernel_size=4, stride=3, padding=0),
-            nn.Conv3d(32, 96, kernel_size=2, stride=3),
-            nn.ReLU(),
-            nn.MaxPool3d(kernel_size=2, stride=2, padding=0),
-            Flatten()
-        )
-        #nn.Conv3d(in_channels, out_channels, kernel_size, stride=1, padding=0, dilation=1, groups=1, bias=True, padding_mode='zeros')
+        #encoder layers
+        self.conv1 = nn.Conv3d(image_channels, 16, kernel_size=2)
+        self.conv2 = nn.Conv3d(16, 32, kernel_size=2)
+        self.conv3 = nn.Conv3d(32, 96, kernel_size=2)
+        self.conv4 = nn.Conv3d(96, 96, kernel_size=2)
 
-        self.fc1 = nn.Linear(h_dim, z_dim) #mu
-        self.fc2 = nn.Linear(h_dim, z_dim) #logvar
-        self.fc3 = nn.Linear(z_dim, h_dim)
+        self.maxpool = nn.MaxPool3d(kernel_size=2, return_indices=True)
         
-        #decoder cnn layers
-        self.decoder = nn.Sequential(
-            UnFlatten(),
-            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose3d(h_dim, 96, kernel_size=5, stride=2),
-            nn.ReLU(),
-            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0), 
-            nn.ConvTranspose3d(96, 32, kernel_size=5, stride=2),
-            nn.ReLU(),
-            nn.MaxUnpool3d(kernel_size=5, stride=2, padding=0),
-            nn.ConvTranspose3d(32, 16, kernel_size=5, stride=2),
-            nn.ReLU(),
-            nn.ConvTranspose3d(16, 3, kernel_size=6, stride=2),
-            nn.Sigmoid(),
-        )
+        self.flatten = Flatten()
+        
+        self.mu = nn.Linear(h_dim, z_dim)
+        self.logvar = nn.Linear(h_dim, z_dim)
+        
+        #decoder layers        
+        self.linear = nn.Linear(z_dim, h_dim)  
+        self.unflatten = UnFlatten()
 
-    def reparameterize(self, mu, logvar):
-        print("reparameterize") 
+        self.maxunpool = nn.MaxUnpool3d(kernel_size=2)
+        
+        self.conv_tran4 = nn.ConvTranspose3d(h_dim, 96, kernel_size=(2,3))
+        self.conv_tran3 = nn.ConvTranspose3d(96, 96, kernel_size=2)
+        self.conv_tran2 = nn.ConvTranspose3d(96, 32, kernel_size=(3,2))
+        self.conv_tran1 = nn.ConvTranspose3d(32, 16, kernel_size=(3,2))
+        self.conv_tran0 = nn.ConvTranspose3d(16, image_channels, kernel_size=(2,3))
+
+        self.sigmoid = nn.Sigmoid()
+        
+    def encode(self, x):
+        print("encode")
+        h = F.relu(self.conv1(x))
+        h, indices1 = self.maxpool(h)
+        h = F.relu(self.conv2(h))
+        h, indices2 = self.maxpool(h)
+        h = F.relu(self.conv3(h))
+        h, indices3 = self.maxpool(h)
+        h = F.relu(self.conv4(h))
+        h, indices4 = self.maxpool(h)
+        h = self.flatten(h)
+        mu, logvar = self.mu(h), self.logvar(h)
         std = logvar.mul(0.5).exp_()
         esp = torch.randn(*mu.size())
         z = mu + std * esp
-        return z
+        return z, mu, logvar, indices1, indices2, indices3, indices4
 
-    def bottleneck(self, h):
-        print("bottleneck") 
-        mu, logvar = self.fc1(h), self.fc2(h)
-        z = self.reparameterize(mu, logvar)
-        return z, mu, logvar
-    
-    def encode(self, x):
-        print("encode") 
-        h = self.encoder(x)
-        z, mu, logvar = self.bottleneck(h)
-        return z, mu, logvar
-
-    def decode(self, z):
-        print("decode")
-        z = self.fc3(z)
-        z = self.decoder(z)
+    def decode(self, z, indices1, indices2, indices3, indices4):
+        print("decode", z.shape)
+        z = self.linear(z)
+        z = self.unflatten(z)
+        z = F.relu(self.conv_tran4(z))
+        z = self.maxunpool(z, indices4)
+        z = F.relu(self.conv_tran3(z))
+        z = self.maxunpool(z, indices3)
+        z = F.relu(self.conv_tran2(z))
+        z = self.maxunpool(z, indices2)
+        z = F.relu(self.conv_tran1(z))
+        z = self.maxunpool(z, indices1)
+        z = F.relu(self.conv_tran0(z))
+        z = self.sigmoid(z)
         return z
     
     def forward(self, x):
-        print("forward")
-        z, mu, logvar = self.encode(x)
-        z = self.decode(z)
-        return z, mu, logvar
-        
-#image_channels = fixed_x.size(1) 
+        z, mu, logvar, indices1, indices2, indices3, indices4 = self.encode(x)
+        z = self.decode(z, indices1, indices2, indices3, indices4)
+        return z, mu, logvar, indices1, indices2, indices3, indices4  
 
 model = VAE()
 if CUDA:
     model.cuda()
-    
+  
 #load previous state   
 #model.load_state_dict(torch.load('cnnvae.torch', map_location='cpu'))
 
 #loss function and optimizer
 def loss_function(recon_x, x, mu, logvar):
-    BCE = F.binary_cross_entropy(recon_x, x, size_average=False)
+    BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
     KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
-    return BCE + KLD, BCE, KLD
+    return BCE + KLD
 
 optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
@@ -179,22 +180,22 @@ test_loader = DataLoader(dataset=testset, batch_size=BATCH_SIZE, shuffle=False, 
 def train(epoch):
     model.train()
     train_loss = 0
-    for idx, (data, _) in enumerate(train_loader):
+    for batch_idx, (data,_) in enumerate(train_loader):
         print("starting training")
         data = Variable(data)
         if CUDA:
             data = data.cuda()
         scheduler.step()
         optimizer.zero_grad()
-        recon_batch, mu, logvar = model(data)
+        recon_batch, mu, logvar, indices1, indices2, indices3, indices4 = model(data)
         loss = loss_function(recon_batch, data, mu, logvar)
         loss.backward()
         train_loss += loss.data
         optimizer.step()
-        if idx % LOG_INTERVAL == 0:
+        if batch_idx % LOG_INTERVAL == 0:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, idx * len(data), len(train_loader.dataset),
-                100. * idx / len(train_loader),
+                epoch, batch_idx * len(data), len(train_loader.dataset),
+                100. * batch_idx / len(train_loader),
                 loss.data / len(data)))
 
     print('====> Epoch: {} Average loss: {:.4f}'.format(
@@ -203,16 +204,16 @@ def train(epoch):
 def test(epoch):
     model.eval()
     test_loss = 0
-    for i, (data, _) in enumerate(test_loader):
+    for i, (data,_) in enumerate(test_loader):
         if CUDA:
             data = data.cuda()
         data = Variable(data, requires_grad=False)
-        recon_batch, mu, logvar = model(data)
+        recon_batch, mu, logvar, indices1, indices2, indices3, indices4 = model(data)
         test_loss += loss_function(recon_batch, data, mu, logvar).data     
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
     
-###parameters need editing
+
 if __name__ == "__main__":
     for epoch in range(1, EPOCHS + 1):
         train(epoch)
