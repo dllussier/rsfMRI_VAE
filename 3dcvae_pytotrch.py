@@ -61,18 +61,11 @@ class CustomDataset(Dataset):
         label,name=self.samples[idx]
         print('label is %s' % label)
         print('name is %s' % name)
-        load = load_fmri(name).get_data()
-        npimg = np.array(load, dtype='int32')
-        npimg_fit=(npimg +1)*127.5
-        npimg_fit=npimg_fit.astype(np.uint8)
-        transform=transforms.Compose([
-                transforms.ToPILImage(),
-                transforms.ToTensor(),
-                ]) 
-        img=torch.tensor(transform(npimg_fit))
+        image = torchmed.readers.SitkReader(name)
+        img = image.to_torch()
         nplabel=np.asarray(label, dtype='int32')
         print('nplabel is %s' % nplabel)
-        return img, nplabel 
+        return img, nplabel
 
 #define model
 class Flatten(nn.Module):
