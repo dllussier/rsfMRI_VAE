@@ -9,6 +9,7 @@ parameters and dataloader need editing to fit additional dimensions in data
 import os
 import numpy as np
 import torch
+import torchmed
 import torch.utils.data
 from torch import nn, optim
 torch.set_default_tensor_type(torch.cuda.FloatTensor)  #comment out for cpu
