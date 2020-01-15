@@ -75,18 +75,21 @@ class Flatten(nn.Module):
 
 class UnFlatten(nn.Module):
     def forward(self, input, size=HDIM):
-        return input.view(input.size(0), size, 1, 1)
+        return input.view(input.size(0), size, 1, 1, 1)
 
 class VAE(nn.Module):
     def __init__(self, image_channels=IMG, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
         super(VAE, self).__init__()
         
+        in_channels=(16,32,96)
+        out_channels=(16,32,96)
+        
         print("VAE")
         #encoder layers
-        self.conv1 = nn.Conv3d(image_channels, 16, kernel_size=2)
-        self.conv2 = nn.Conv3d(16, 32, kernel_size=2)
-        self.conv3 = nn.Conv3d(32, 96, kernel_size=2)
-        self.conv4 = nn.Conv3d(96, 96, kernel_size=2)
+        self.conv1 = nn.Conv3d(image_channels, out_channels[0], kernel_size=2)
+        self.conv2 = nn.Conv3d(in_channels[0], out_channels[1], kernel_size=2)
+        self.conv3 = nn.Conv3d(in_channels[1], out_channels[2], kernel_size=2)
+        self.conv4 = nn.Conv3d(in_channels[2], out_channels[2], kernel_size=2)
 
         self.maxpool = nn.MaxPool3d(kernel_size=2, return_indices=True)
         
@@ -95,17 +98,20 @@ class VAE(nn.Module):
         self.mu = nn.Linear(h_dim, z_dim)
         self.logvar = nn.Linear(h_dim, z_dim)
         
+        #classifier layer
+        #self.classify = nn.Linear(h_dim, n_classes)
+
         #decoder layers        
         self.linear = nn.Linear(z_dim, h_dim)  
         self.unflatten = UnFlatten()
 
         self.maxunpool = nn.MaxUnpool3d(kernel_size=2)
         
-        self.conv_tran4 = nn.ConvTranspose3d(h_dim, 96, kernel_size=(2,3))
-        self.conv_tran3 = nn.ConvTranspose3d(96, 96, kernel_size=2)
-        self.conv_tran2 = nn.ConvTranspose3d(96, 32, kernel_size=(3,2))
-        self.conv_tran1 = nn.ConvTranspose3d(32, 16, kernel_size=(3,2))
-        self.conv_tran0 = nn.ConvTranspose3d(16, image_channels, kernel_size=(2,3))
+        self.conv_tran4 = nn.ConvTranspose3d(h_dim, out_channels[2], kernel_size=(2,3,2))
+        self.conv_tran3 = nn.ConvTranspose3d(in_channels[2], out_channels[2], kernel_size=(2,2,2))
+        self.conv_tran2 = nn.ConvTranspose3d(in_channels[2], out_channels[1], kernel_size=(3,2,3))
+        self.conv_tran1 = nn.ConvTranspose3d(in_channels[1], out_channels[0], kernel_size=(2,2,3))
+        self.conv_tran0 = nn.ConvTranspose3d(in_channels[0], image_channels, kernel_size=(3,2,2))
 
         self.sigmoid = nn.Sigmoid()
         
