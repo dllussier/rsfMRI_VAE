@@ -39,8 +39,10 @@ if CUDA:
 #load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
-train_dir = "./train/"
-test_dir = "./test/"
+
+train_dir = "./data01/train01/"
+test_dir = "./data01/test01/"
+logfile = './cvae_log.txt'
 
 #create customized dataset
 class CustomDataset(Dataset):    
@@ -111,12 +113,11 @@ class VAE(nn.Module):
         self.conv_tran3 = nn.ConvTranspose3d(in_channels[2], out_channels[2], kernel_size=(2,2,2))
         self.conv_tran2 = nn.ConvTranspose3d(in_channels[2], out_channels[1], kernel_size=(3,2,3))
         self.conv_tran1 = nn.ConvTranspose3d(in_channels[1], out_channels[0], kernel_size=(2,2,3))
-        self.conv_tran0 = nn.ConvTranspose3d(in_channels[0], image_channels, kernel_size=(3,2,2))
+        self.conv_tran0 = nn.ConvTranspose3d(in_channels[0], image_channels, kernel_size=(3,3,2))
 
         self.sigmoid = nn.Sigmoid()
         
     def encode(self, x):
-        print("encode")
         h = F.relu(self.conv1(x))
         h, indices1 = self.maxpool(h)
         h = F.relu(self.conv2(h))
@@ -130,13 +131,12 @@ class VAE(nn.Module):
         std = logvar.mul(0.5).exp_()
         esp = torch.randn(*mu.size())
         z = mu + std * esp
-        return z, mu, logvar, indices1, indices2, indices3, indices4
+        return z, mu, logvar, indices1, indices2, indices3, indices4        
 
     def decode(self, z, indices1, indices2, indices3, indices4):
-        print("decode", z.shape)
         z = self.linear(z)
         z = self.unflatten(z)
-        z = F.relu(self.conv_tran4(z))
+        z = F.relu(self.conv_tran4(z)) 
         z = self.maxunpool(z, indices4)
         z = F.relu(self.conv_tran3(z))
         z = self.maxunpool(z, indices3)
@@ -158,7 +158,7 @@ if CUDA:
     model.cuda()
   
 #load previous state   
-#model.load_state_dict(torch.load('c3dcnnvae.torch', map_location='cpu'))
+model.load_state_dict(torch.load('3dcvae.torch', map_location='cpu'))
 
 #loss function and optimizer
 def loss_function(recon_x, x, mu, logvar):
@@ -181,7 +181,7 @@ def train(epoch):
     model.train()
     train_loss = 0
     for batch_idx, (data,_) in enumerate(train_loader):
-        print("starting training")
+        print('training')
         data = Variable(data)
         if CUDA:
             data = data.cuda()
@@ -209,7 +209,18 @@ def test(epoch):
             data = data.cuda()
         data = Variable(data, requires_grad=False)
         recon_batch, mu, logvar, indices1, indices2, indices3, indices4 = model(data)
-        test_loss += loss_function(recon_batch, data, mu, logvar).data     
+        test_loss += loss_function(recon_batch, data, mu, logvar).data  
+        if i == 0:
+          n = min(data.size(0), 8)
+          comparison = torch.cat([data[:n],recon_batch.view(BATCH_SIZE, IMG, 52, 64, 53)[:n]])         
+          comparison = comparison.data.cpu()
+          comparison = comparison.detach().numpy()
+          comparison = np.squeeze(comparison)
+          with open(logfile, 'a') as log:
+              print(comparison.shape, file=log)
+              print(comparison.size, file=log)
+              print(comparison, file=log)
+                
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
     
@@ -218,11 +229,6 @@ if __name__ == "__main__":
     for epoch in range(1, EPOCHS + 1):
         train(epoch)
         test(epoch)
-#        with torch.no_grad():
-#            sample = Variable(torch.randn(64, ZDIMS)) ###edit parameters
-#            sample = model.decode(sample).cpu()
-#            save_image(sample.view(1, 61, 73, 61), ###edit parameters
-#                       'results/sample_' + str(epoch) + '.png')
 
 #save model state
-torch.save(model.state_dict(), '3dcnnvae.torch')
+torch.save(model.state_dict(), '3dcvae.torch')
