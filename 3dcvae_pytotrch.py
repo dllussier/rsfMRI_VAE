@@ -99,9 +99,6 @@ class VAE(nn.Module):
         
         self.mu = nn.Linear(h_dim, z_dim)
         self.logvar = nn.Linear(h_dim, z_dim)
-        
-        #classifier layer
-        #self.classify = nn.Linear(h_dim, n_classes)
 
         #decoder layers        
         self.linear = nn.Linear(z_dim, h_dim)  
