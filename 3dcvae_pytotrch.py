@@ -11,7 +11,7 @@ import torch
 import torchmed
 import torch.utils.data
 from torch import nn, optim
-torch.set_default_tensor_type(torch.cuda.FloatTensor)  #comment out for cpu
+torch.set_default_tensor_type(torch.cuda.DoubleTensor)  #comment out for cpu
 from glob import glob
 from torch.autograd import Variable
 from torch.nn import functional as F
