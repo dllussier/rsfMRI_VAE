@@ -3,8 +3,8 @@
 """
 @author: desiree lussier
 
+takes 3d nifti images in labeled folders 
 """
-
 import os
 import numpy as np
 import torch
@@ -15,30 +15,28 @@ torch.set_default_tensor_type(torch.cuda.DoubleTensor)  #comment out for cpu
 from glob import glob
 from torch.autograd import Variable
 from torch.nn import functional as F
-from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
-from nibabel import load as load_fmri
 
-CUDA=True    #for cpu set to 'False'
+#set parameters here for convenience
+CUDA=True           #for cpu set to 'False' and for gpu set 'True'
 SEED=1
 BATCH_SIZE=1
-LOG_INTERVAL = 10
-EPOCHS=50
-ZDIMS=24
-CLASSES=17 
+LOG_INTERVAL=10
+EPOCHS=1000
+ZDIMS=24            #bottleneck connections
+CLASSES=17
 OPT_LEARN_RATE=0.01
 STEP_SIZE=1 
 GAMMA=0.9 
-HDIM=576
-IMG=1       #set to 1 for grayscale and 3 for rgb
+HDIM=1152
+IMG=1               #set to 1 for grayscale and 3 for rgb
 
 torch.manual_seed(SEED)
 if CUDA:
     torch.cuda.manual_seed(SEED)
 
-#load tensors directly into GPU memory
+# load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
-
 
 train_dir = "./data01/train01/"
 test_dir = "./data01/test01/"
@@ -52,7 +50,7 @@ class CustomDataset(Dataset):
         for label in os.listdir(data_root):            
                 labels_folder = os.path.join(data_root, label)
 
-                for name in glob(os.path.join(labels_folder,'*.nii.gz')):
+                for name in glob(os.path.join(labels_folder,'*_DMN.nii.gz')):
                     self.samples.append((label,name)) 
 
         print('data root: %s' % data_root)
@@ -61,16 +59,16 @@ class CustomDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx): 
-        label,name=self.samples[idx]
+        label,name = self.samples[idx]
         print('name is %s' % name)
-        image = torchmed.readers.SitkReader(name)
-        npimage = image.to_numpy()
-        expanded = np.expand_dims(npimage, axis=0)
-        img = torch.from_numpy(expanded)
-        nplabel=np.asarray(label, dtype='int32')
+        image = torchmed.readers.SitkReader(name)       #read nifti using torchmed
+        npimage = image.to_numpy()                      #convert to numpy array
+        expanded = np.expand_dims(npimage, axis=0)      #add image dimension
+        img = torch.from_numpy(expanded)                #transform image to tensor
+        nplabel=np.asarray(label, dtype='int32')        #convert label to numpy integer
         return img, nplabel 
 
-#define model
+#define flatten and unflatten
 class Flatten(nn.Module):
     def forward(self, input):
         return input.view(input.size(0), -1)
@@ -79,38 +77,38 @@ class UnFlatten(nn.Module):
     def forward(self, input, size=HDIM):
         return input.view(input.size(0), size, 1, 1, 1)
 
+#build variational autoencoder model
 class VAE(nn.Module):
     def __init__(self, image_channels=IMG, h_dim=HDIM, z_dim=ZDIMS, n_classes=CLASSES):
         super(VAE, self).__init__()
         
-        in_channels=(16,32,96)
-        out_channels=(16,32,96)
-        
+        channels = (16,32,96)
+                
         print("VAE")
         #encoder layers
-        self.conv1 = nn.Conv3d(image_channels, out_channels[0], kernel_size=2)
-        self.conv2 = nn.Conv3d(in_channels[0], out_channels[1], kernel_size=2)
-        self.conv3 = nn.Conv3d(in_channels[1], out_channels[2], kernel_size=2)
-        self.conv4 = nn.Conv3d(in_channels[2], out_channels[2], kernel_size=2)
+        self.conv1 = nn.Conv3d(image_channels, channels[0], kernel_size=2)
+        self.conv2 = nn.Conv3d(channels[0], channels[1], kernel_size=2)
+        self.conv3 = nn.Conv3d(channels[1], channels[2], kernel_size=2)
+        self.conv4 = nn.Conv3d(channels[2], channels[2], kernel_size=2)
 
-        self.maxpool = nn.MaxPool3d(kernel_size=2, return_indices=True)
+        self.maxpool = nn.MaxPool3d(kernel_size=2, return_indices=True) #pooling layers return indices
         
-        self.flatten = Flatten()
+        self.flatten = Flatten()                                        #flattens dims into tensor
         
-        self.mu = nn.Linear(h_dim, z_dim)
-        self.logvar = nn.Linear(h_dim, z_dim)
+        self.mu = nn.Linear(h_dim, z_dim)                               #mu layer
+        self.logvar = nn.Linear(h_dim, z_dim)                           #logvariance layer
 
         #decoder layers        
-        self.linear = nn.Linear(z_dim, h_dim)  
-        self.unflatten = UnFlatten()
+        self.linear = nn.Linear(z_dim, h_dim)                           #pulls from bottleneck to hidden
+        self.unflatten = UnFlatten()                                    #unflattens tensor to dims
 
-        self.maxunpool = nn.MaxUnpool3d(kernel_size=2)
+        self.maxunpool = nn.MaxUnpool3d(kernel_size=2)                  #unpooling layers require indices from pooling layers
         
-        self.conv_tran4 = nn.ConvTranspose3d(h_dim, out_channels[2], kernel_size=(2,3,2))
-        self.conv_tran3 = nn.ConvTranspose3d(in_channels[2], out_channels[2], kernel_size=(2,2,2))
-        self.conv_tran2 = nn.ConvTranspose3d(in_channels[2], out_channels[1], kernel_size=(3,2,3))
-        self.conv_tran1 = nn.ConvTranspose3d(in_channels[1], out_channels[0], kernel_size=(2,2,3))
-        self.conv_tran0 = nn.ConvTranspose3d(in_channels[0], image_channels, kernel_size=(3,3,2))
+        self.conv_tran4 = nn.ConvTranspose3d(h_dim, channels[2], kernel_size=(2,3,2))
+        self.conv_tran3 = nn.ConvTranspose3d(channels[2], channels[2], kernel_size=(2,2,2))
+        self.conv_tran2 = nn.ConvTranspose3d(channels[2], channels[1], kernel_size=(3,2,3))
+        self.conv_tran1 = nn.ConvTranspose3d(channels[1], channels[0], kernel_size=(2,2,3))
+        self.conv_tran0 = nn.ConvTranspose3d(channels[0], image_channels, kernel_size=(3,3,2))
 
         self.sigmoid = nn.Sigmoid()
         
@@ -125,10 +123,11 @@ class VAE(nn.Module):
         h, indices4 = self.maxpool(h)
         h = self.flatten(h)
         mu, logvar = self.mu(h), self.logvar(h)
+        #reparametize 
         std = logvar.mul(0.5).exp_()
         esp = torch.randn(*mu.size())
         z = mu + std * esp
-        return z, mu, logvar, indices1, indices2, indices3, indices4        
+        return z, mu, logvar, indices1, indices2, indices3, indices4   
 
     def decode(self, z, indices1, indices2, indices3, indices4):
         z = self.linear(z)
@@ -148,25 +147,27 @@ class VAE(nn.Module):
     def forward(self, x):
         z, mu, logvar, indices1, indices2, indices3, indices4 = self.encode(x)
         z = self.decode(z, indices1, indices2, indices3, indices4)
-        return z, mu, logvar, indices1, indices2, indices3, indices4  
+        return z, mu, logvar, indices1, indices2, indices3, indices4
 
 model = VAE()
 if CUDA:
     model.cuda()
   
-#load previous state   
+#load previous state 
 model.load_state_dict(torch.load('3dcvae.torch', map_location='cpu'))
 
-#loss function and optimizer
+#loss function is reconstruction + KL divergence losses summed over all elements and batch
+# Kingma and Welling. Auto-Encoding Variational Bayes. ICLR, 2014; https://arxiv.org/abs/1312.6114
 def loss_function(recon_x, x, mu, logvar):
     BCE = F.binary_cross_entropy(recon_x, x, reduction='sum')
     KLD = -0.5 * torch.mean(1 + logvar - mu.pow(2) - logvar.exp())
     return BCE + KLD
 
+#optimizer and scheduler
 optimizer = optim.Adam(model.parameters(), lr=OPT_LEARN_RATE)
 scheduler = optim.lr_scheduler.StepLR(optimizer, step_size = STEP_SIZE, gamma = GAMMA)
 
-#load dataset
+#load dataset using custom dataset and parameters from above
 trainset = CustomDataset(train_dir)
 testset = CustomDataset(test_dir)
 
@@ -178,7 +179,6 @@ def train(epoch):
     model.train()
     train_loss = 0
     for batch_idx, (data,_) in enumerate(train_loader):
-        print('training')
         data = Variable(data)
         if CUDA:
             data = data.cuda()
@@ -195,6 +195,7 @@ def train(epoch):
                 100. * batch_idx / len(train_loader),
                 loss.data / len(data)))
 
+    #print loss
     print('====> Epoch: {} Average loss: {:.4f}'.format(
           epoch, train_loss / len(train_loader.dataset)))
 
@@ -206,7 +207,9 @@ def test(epoch):
             data = data.cuda()
         data = Variable(data, requires_grad=False)
         recon_batch, mu, logvar, indices1, indices2, indices3, indices4 = model(data)
-        test_loss += loss_function(recon_batch, data, mu, logvar).data  
+        test_loss += loss_function(recon_batch, data, mu, logvar).data
+        
+        #print footer and header of target and recontructed voxel values to log file for numerical comparison
         if i == 0:
           n = min(data.size(0), 8)
           comparison = torch.cat([data[:n],recon_batch.view(BATCH_SIZE, IMG, 52, 64, 53)[:n]])         
@@ -217,11 +220,12 @@ def test(epoch):
               print(comparison.shape, file=log)
               print(comparison.size, file=log)
               print(comparison, file=log)
-                
+    
+    #print loss            
     test_loss /= len(test_loader.dataset)
     print('====> Test set loss: {:.4f}'.format(test_loss))
     
-
+#run train and test
 if __name__ == "__main__":
     for epoch in range(1, EPOCHS + 1):
         train(epoch)
