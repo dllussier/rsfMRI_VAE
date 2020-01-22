@@ -1,5 +1,4 @@
 # rsfMRI_VAE
-#work in progress
 
 Goals:
 Build 2D, 3D and graph convolutional VAE frameworks for use with resting-state fMRI data.
