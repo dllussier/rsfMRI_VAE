@@ -99,7 +99,7 @@ class VAE(nn.Module):
         self.logvar = nn.Linear(h_dim, z_dim)                           #logvariance layer
 
         #decoder layers        
-        self.linear = nn.Linear(z_dim, h_dim)                           #pulls from bottleneck to hidden
+        self.linear = nn.Linear(z_dim, h_dim)                           #pulls from sampled latent vector to hidden
         self.unflatten = UnFlatten()                                    #unflattens tensor to dims
 
         self.maxunpool = nn.MaxUnpool3d(kernel_size=2)                  #unpooling layers require indices from pooling layers
@@ -122,9 +122,8 @@ class VAE(nn.Module):
         h = F.relu(self.conv4(h))
         h, indices4 = self.maxpool(h)
         h = self.flatten(h)
-        mu, logvar = self.mu(h), self.logvar(h)
-        #reparametize 
-        std = logvar.mul(0.5).exp_()
+        mu, logvar = self.mu(h), self.logvar(h)        
+        std = logvar.mul(0.5).exp_()                #reparametization
         esp = torch.randn(*mu.size())
         z = mu + std * esp
         return z, mu, logvar, indices1, indices2, indices3, indices4   
