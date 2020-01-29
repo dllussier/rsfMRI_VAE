@@ -1,9 +1,9 @@
 # rsfMRI_VAE
 
-Goals:
-Build 2D, 3D and graph convolutional VAE frameworks for use with resting-state fMRI data.
-
-VAEs are based off of the Pytorch VAE example: https://github.com/pytorch/examples/tree/master/vae
+Goals:<br>
+Build 2D, 3D and graph convolutional VAE frameworks for use with resting-state fMRI data.<br>
+<br>
+VAEs are based off of the Pytorch VAE example: https://github.com/pytorch/examples/tree/master/vae<br>
 
 Requirements:
 torch==1.0.1
