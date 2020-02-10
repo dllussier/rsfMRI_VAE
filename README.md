@@ -13,6 +13,7 @@ nibabel==3.0.0<br>
 numpy==1.18.1<br>
 nilearn==0.6.1<br>
 torchvision==0.0.2<br>
+pillow==6.1.0<br>
 <br>
 For graph frameworks (in addition to above):<br>
 dgl==0.4.2<br>
