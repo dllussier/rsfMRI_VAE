@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 @author: desiree lussier
 
 takes 3d nifti images in labeled folders 
 """
+
 import os
 import numpy as np
 import torch
@@ -22,10 +24,10 @@ CUDA=True           #for cpu set to 'False' and for gpu set 'True'
 SEED=1
 BATCH_SIZE=1
 LOG_INTERVAL=10
-EPOCHS=1000
-ZDIMS=24            #bottleneck connections
-CLASSES=17
-OPT_LEARN_RATE=0.01
+EPOCHS=1
+ZDIMS=500            #bottleneck connections
+CLASSES=13
+OPT_LEARN_RATE=0.001
 STEP_SIZE=1 
 GAMMA=0.9 
 HDIM=1152
@@ -38,8 +40,8 @@ if CUDA:
 # load tensors directly into GPU memory
 kwargs = {'num_workers': 1, 'pin_memory': True} if CUDA else {}
 
-train_dir = "./data01/train01/"
-test_dir = "./data01/test01/"
+train_dir = "../data/train/"
+test_dir = "../data/test/"
 logfile = './cvae_log.txt'
 
 #create customized dataset
@@ -47,11 +49,8 @@ class CustomDataset(Dataset):
     def __init__(self,data_root):
         self.samples = []
 
-        for label in os.listdir(data_root):            
-                labels_folder = os.path.join(data_root, label)
-
-                for name in glob(os.path.join(labels_folder,'*_DMN.nii.gz')):
-                    self.samples.append((label,name)) 
+        for name in glob(os.path.join(data_root,'*.nii.gz')):
+            self.samples.append(name) 
 
         print('data root: %s' % data_root)
             
@@ -59,14 +58,13 @@ class CustomDataset(Dataset):
         return len(self.samples)
 
     def __getitem__(self, idx): 
-        label,name = self.samples[idx]
+        name = self.samples[idx]
         print('name is %s' % name)
         image = torchmed.readers.SitkReader(name)       #read nifti using torchmed
         npimage = image.to_numpy()                      #convert to numpy array
         expanded = np.expand_dims(npimage, axis=0)      #add image dimension
         img = torch.from_numpy(expanded)                #transform image to tensor
-        nplabel=np.asarray(label, dtype='int32')        #convert label to numpy integer
-        return img, nplabel 
+        return img 
 
 #define flatten and unflatten
 class Flatten(nn.Module):
@@ -99,7 +97,7 @@ class VAE(nn.Module):
         self.logvar = nn.Linear(h_dim, z_dim)                           #logvariance layer
 
         #decoder layers        
-        self.linear = nn.Linear(z_dim, h_dim)                           #pulls from sampled latent vector to hidden
+        self.linear = nn.Linear(z_dim, h_dim)                           #pulls from bottleneck to hidden
         self.unflatten = UnFlatten()                                    #unflattens tensor to dims
 
         self.maxunpool = nn.MaxUnpool3d(kernel_size=2)                  #unpooling layers require indices from pooling layers
@@ -122,8 +120,8 @@ class VAE(nn.Module):
         h = F.relu(self.conv4(h))
         h, indices4 = self.maxpool(h)
         h = self.flatten(h)
-        mu, logvar = self.mu(h), self.logvar(h)        
-        std = logvar.mul(0.5).exp_()                #reparametization
+        mu, logvar = self.mu(h), self.logvar(h)
+        std = logvar.mul(0.5).exp_()        #reparametize 
         esp = torch.randn(*mu.size())
         z = mu + std * esp
         return z, mu, logvar, indices1, indices2, indices3, indices4   
