@@ -4,7 +4,8 @@
 """
 @author: desiree lussier
 
-takes 3d nifti images in labeled folders 
+3D convolutional varational autoencoder.
+takes 3D nifti images as input.
 """
 
 import os
@@ -121,7 +122,7 @@ class VAE(nn.Module):
         h, indices4 = self.maxpool(h)
         h = self.flatten(h)
         mu, logvar = self.mu(h), self.logvar(h)
-        std = logvar.mul(0.5).exp_()        #reparametize 
+        std = logvar.mul(0.5).exp_()        #reparametization
         esp = torch.randn(*mu.size())
         z = mu + std * esp
         return z, mu, logvar, indices1, indices2, indices3, indices4   
